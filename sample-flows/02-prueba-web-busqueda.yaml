@@ -1,0 +1,9 @@
+url: https://example.com
+name: "Flujo 02 — Automatización Web E2E"
+tags:
+  - web
+  - regresion
+---
+- launchApp
+- assertVisible: "Example Domain"
+- takeScreenshot: "portada-web"

@@ -1,0 +1,24 @@
+# Dependencias y compilación
+node_modules/
+dist/
+src-tauri/target/
+src-tauri/gen/schemas/
+
+# Generados por scripts/build-studio-ui.mjs a partir de Maestro Studio.app
+studio-ui/
+engines-bundle/
+
+# Motores de Maestro (binarios grandes / symlinks a /Applications/Maestro Studio.app)
+resources/engines/
+
+# Clon de referencia de mobile-dev-inc/maestro (repositorio propio)
+packages/maestro-oss/
+
+# Salida del repack Electron (código de Maestro Studio parcheado)
+patched-studio-files/
+
+# Estado local en tiempo de ejecución
+.clean-studio-home/
+logs/
+reports/
+.DS_Store

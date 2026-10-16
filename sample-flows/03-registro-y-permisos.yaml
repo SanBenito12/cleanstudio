@@ -1,0 +1,16 @@
+appId: com.ejemplo.appmovil
+name: "Flujo 03 — Onboarding y Permisos Nativos"
+tags:
+  - onboarding
+---
+- launchApp:
+    clearState: true
+    permissions:
+      notifications: allow
+      location: allow
+- swipe:
+    direction: LEFT
+- swipe:
+    direction: LEFT
+- tapOn: "Comenzar ahora"
+- assertVisible: "Mi Perfil"

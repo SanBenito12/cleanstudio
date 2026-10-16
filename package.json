@@ -1,0 +1,16 @@
+{
+  "name": "clean-studio",
+  "private": true,
+  "version": "1.0.0",
+  "description": "Clean Studio — Automatización E2E Móvil y Web en Español (Rust + Tauri v2 + Maestro Core)",
+  "type": "module",
+  "scripts": {
+    "studio-ui": "node scripts/build-studio-ui.mjs",
+    "tauri": "tauri",
+    "tauri:dev": "tauri dev",
+    "tauri:build": "tauri build"
+  },
+  "devDependencies": {
+    "@tauri-apps/cli": "^2.2.0"
+  }
+}

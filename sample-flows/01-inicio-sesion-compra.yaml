@@ -1,0 +1,34 @@
+appId: com.ejemplo.tienda
+name: "Flujo 01 — Inicio de Sesión y Carrito de Compras"
+tags:
+  - humo
+  - produccion
+env:
+  CORREO_DEMO: "usuario@cleanstudio.dev"
+---
+# 1. Lanzar la aplicación limpiando el estado previo
+- launchApp:
+    clearState: true
+
+# 2. Verificar que la pantalla de bienvenida está visible
+- assertVisible: "Iniciar sesión"
+- tapOn:
+    id: "input_correo"
+- inputText: ${CORREO_DEMO}
+
+# 3. Ingresar contraseña y entrar
+- tapOn:
+    id: "input_password"
+- inputText: "ClaveSegura2026!"
+- tapOn: "Entrar"
+
+# 4. Validar acceso al catálogo y agregar producto
+- extendedWaitUntil:
+    visible: "Catálogo Principal"
+    timeout: 8000
+- scrollUntilVisible:
+    element: "Agregar al carrito"
+    direction: DOWN
+- tapOn: "Agregar al carrito"
+- assertVisible: "1 artículo en tu carrito"
+- takeScreenshot: "compra-exitosa"
