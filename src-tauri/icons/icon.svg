@@ -1,0 +1,20 @@
+<svg width="1024" height="1024" viewBox="0 0 1024 1024" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <!-- Clean Studio: squircle blanco con una "C" geométrica (cuadrado con corte circular a la derecha) -->
+  <defs>
+    <linearGradient id="bg" x1="512" y1="100" x2="512" y2="924" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#FFFFFF"/>
+      <stop offset="1" stop-color="#F4F4F4"/>
+    </linearGradient>
+    <linearGradient id="mark" x1="512" y1="262" x2="512" y2="762" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#1A1A1A"/>
+      <stop offset="0.55" stop-color="#2E2E2E"/>
+      <stop offset="1" stop-color="#5E5E5E"/>
+    </linearGradient>
+    <filter id="shadow" x="60" y="70" width="904" height="904" filterUnits="userSpaceOnUse" color-interpolation-filters="sRGB">
+      <feDropShadow dx="0" dy="10" stdDeviation="14" flood-color="#000000" flood-opacity="0.18"/>
+    </filter>
+  </defs>
+  <rect x="100" y="100" width="824" height="824" rx="185" fill="url(#bg)" filter="url(#shadow)"/>
+  <rect x="100.5" y="100.5" width="823" height="823" rx="184.5" stroke="#000000" stroke-opacity="0.06"/>
+  <path d="M262 262H762V394A118 118 0 0 0 762 630V762H262Z" fill="url(#mark)"/>
+</svg>

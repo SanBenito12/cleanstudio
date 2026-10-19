@@ -111,6 +111,30 @@ js = mustReplace(
   'case"editor-worker":case"editorWorkerService":return new Eln;',
   "worker de Monaco",
 );
+// Logo de la bienvenida (componente Ban): la "C" de Clean Studio en lugar de la marca de Maestro
+const banLogo = /(function Ban\(\{className:i\}\)\{return k\("svg",\{className:i,viewBox:"0 25 92 92"[^}]*?k\("path",\{d:")[^"]+(")/;
+if (!banLogo.test(js)) throw new Error('Parche "logo de bienvenida" no encontrado');
+js = js.replace(banLogo, "$1M0 25H92V49.3A21.7 21.7 0 0 0 92 92.7V117H0Z$2");
+// Ventana "Acerca de": nombre y versión de Clean Studio (la fila "Maestro" sigue mostrando el motor)
+const appVersion = JSON.parse(fs.readFileSync(path.join(ROOT, "package.json"), "utf8")).version;
+js = mustReplace(
+  js,
+  'alt:"Maestro Studio",className:"w-full h-full rounded-xl"',
+  'alt:"Clean Studio",className:"w-full h-full rounded-xl"',
+  "Acerca de: icono",
+);
+js = mustReplace(
+  js,
+  'className:"text-lg font-semibold text-foreground",children:"Maestro Studio"',
+  'className:"text-lg font-semibold text-foreground",children:"Clean Studio"',
+  "Acerca de: título",
+);
+js = mustReplace(
+  js,
+  'children:"Maestro Studio"}),k("span",{className:"text-sm font-mono text-foreground",children:i||"Loading..."})',
+  `children:"Clean Studio"}),k("span",{className:"text-sm font-mono text-foreground",children:"${appVersion}"})`,
+  "Acerca de: versión",
+);
 // PostHog: nunca capturar (además la CSP bloquea cualquier envío)
 js = mustReplace(
   js,
@@ -122,17 +146,16 @@ fs.writeFileSync(bundlePath, js);
 
 // 2. Logo
 const logo = `<svg width="595" height="142" viewBox="0 0 595 142" fill="none" xmlns="http://www.w3.org/2000/svg">
-  <rect x="8" y="16" width="110" height="110" rx="28" fill="url(#cs_grad)"/>
-  <path d="M44 72L62 90L94 52" stroke="#020617" stroke-width="12" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M8 16H118V45A26 26 0 0 0 118 97V126H8Z" fill="currentColor"/>
   <text x="142" y="92" fill="currentColor" font-family="-apple-system, BlinkMacSystemFont, 'SF Pro Display', Inter, sans-serif" font-size="68" font-weight="800" letter-spacing="-1.5">Clean Studio</text>
-  <defs>
-    <linearGradient id="cs_grad" x1="8" y1="16" x2="118" y2="126" gradientUnits="userSpaceOnUse">
-      <stop stop-color="#34D399"/>
-      <stop offset="1" stop-color="#38BDF8"/>
-    </linearGradient>
-  </defs>
 </svg>`;
 fs.writeFileSync(path.join(OUT, "assets", "Maestro logo _ wordmark-CXPWZs15.svg"), logo);
+// Icono de la app dentro de la interfaz (Acerca de, favicon): el mismo de src-tauri/icons
+for (const name of fs.readdirSync(path.join(OUT, "assets"))) {
+  if (/^maestro-icon-.*\.png$/.test(name)) {
+    fs.copyFileSync(path.join(ROOT, "src-tauri", "icons", "icon.png"), path.join(OUT, "assets", name));
+  }
+}
 
 // 3. index.html: título y shim antes del bundle (debe ejecutarse primero, de forma síncrona)
 const htmlPath = path.join(OUT, "index.html");
