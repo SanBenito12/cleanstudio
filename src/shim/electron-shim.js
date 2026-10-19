@@ -287,6 +287,39 @@
   };
   utilShim.default = utilShim;
 
+  // conf/atomically leen userInfo() al cargar el módulo
+  var osShim = {
+    EOL: "\n",
+    platform: function () {
+      return "darwin";
+    },
+    type: function () {
+      return "Darwin";
+    },
+    arch: function () {
+      return "arm64";
+    },
+    release: function () {
+      return "";
+    },
+    hostname: function () {
+      return "localhost";
+    },
+    homedir: function () {
+      return "/";
+    },
+    tmpdir: function () {
+      return "/tmp";
+    },
+    cpus: function () {
+      return [];
+    },
+    userInfo: function () {
+      return { uid: -1, gid: -1, username: "", homedir: "/", shell: null };
+    },
+  };
+  osShim.default = osShim;
+
   var modules = {
     electron: electron,
     path: pathPosix,
@@ -295,7 +328,8 @@
     "node:process": processShim,
     util: utilShim,
     "node:util": utilShim,
-    os: Object.assign(inert("os"), {}),
+    os: osShim,
+    "node:os": osShim,
   };
 
   function cleanRequire(name) {
@@ -389,7 +423,7 @@
   function rendererLog(level, parts) {
     var text = Array.prototype.map
       .call(parts, function (p) {
-        if (p instanceof Error) return p.stack || p.message;
+        if (p instanceof Error) return p.name + ": " + p.message + "\n" + (p.stack || "");
         if (typeof p === "object") {
           try {
             return JSON.stringify(p);

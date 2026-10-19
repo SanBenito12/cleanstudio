@@ -24,6 +24,29 @@ fn shutdown(app: &tauri::AppHandle) {
     server::stop(app);
 }
 
+static SIGNALED: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
+
+extern "C" fn on_signal(_: libc::c_int) {
+    SIGNALED.store(true, std::sync::atomic::Ordering::SeqCst);
+}
+
+/// SIGINT/SIGTERM cierran la app limpiamente (como el original) para no dejar
+/// studio-server ni simulator-server huérfanos.
+fn handle_signals(app: tauri::AppHandle) {
+    unsafe {
+        libc::signal(libc::SIGINT, on_signal as extern "C" fn(libc::c_int) as libc::sighandler_t);
+        libc::signal(libc::SIGTERM, on_signal as extern "C" fn(libc::c_int) as libc::sighandler_t);
+    }
+    std::thread::spawn(move || loop {
+        std::thread::sleep(std::time::Duration::from_millis(200));
+        if SIGNALED.load(std::sync::atomic::Ordering::SeqCst) {
+            shutdown(&app);
+            app.exit(0);
+            return;
+        }
+    });
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
@@ -35,6 +58,7 @@ pub fn run() {
             let handle = app.handle().clone();
             app.state::<AppState>().settings.load(&handle);
             windows::create_main(&handle)?;
+            handle_signals(handle.clone());
             // Igual que el original: verificación del simulator-server y arranque del servidor
             std::thread::spawn(move || {
                 simulator::preflight(&handle);

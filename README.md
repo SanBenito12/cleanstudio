@@ -1,48 +1,64 @@
 # Clean Studio (`clean-studio`)
 
-**Automatización E2E Móvil (Android / iOS) y Web en Español • Núcleo Nativo en Rust (Tauri v2) + Maestro Core • Cero Telemetría**
+**Automatización E2E móvil (Android / iOS) y web en español • Núcleo nativo en Rust (Tauri v2) + motores de Maestro • Sin cuentas • Cero telemetría**
 
 ---
 
-## Arquitectura (Ingeniería Inversa con REA)
+## Cómo funciona
 
-`Clean Studio` fue diseñado tras analizar `MaestroStudio.dmg` (v0.9.8) con **REA (`morluto/rea`)** y el repositorio oficial [`mobile-dev-inc/maestro`](https://github.com/mobile-dev-inc/maestro):
-
-1. **Núcleo Nativo en Rust (`src-tauri/`)**:
-   - Reemplaza los 477 MB de `node_modules` de Electron por un orquestador ultraligero en **Rust + Tauri v2**.
-   - Controla el ciclo de vida de `studio-server.jar` (puerto `5050`) y `simulator-server` (streaming MJPEG a 60 FPS).
-   - Detecta automáticamente simuladores de iOS (`xcrun simctl`) y dispositivos Android (`adb`).
-2. **Interfaz 100% en Español (`src/`)**:
-   - **Constructor Visual de Pasos YAML**: Inserta comandos (`tapOn`, `inputText`, `assertVisible`, `scrollUntilVisible`, `launchApp`, `takeScreenshot`) con un clic.
-   - **Espejo en Vivo e Inspector de Jerarquía (`ViewHierarchy`)**: Selecciona elementos de la pantalla del dispositivo para generar sus selectores automáticamente.
-   - **Traductor Inteligente de Errores de Maestro**: Convierte excepciones técnicas del backend JVM en explicaciones claras en español.
-   - **Asistente IA Libre (Offline Rust / Ollama Local / Gemini / OpenAI)**: Genera flujos YAML comentados en español sin requerir cuenta ni suscripción a Maestro Cloud.
-   - **Exportador de Reportes HTML Locales**: Genera reportes ejecutivos autocontenidos en español en la carpeta `reports/`.
-3. **Cero Telemetría**:
-   - Eliminados al 100% `posthog-js`, `posthog-node`, `@sentry/electron` y todos los banners publicitarios de Maestro Cloud.
+1. **Interfaz** (`studio-ui/`, generada): `scripts/build-studio-ui.mjs` toma la interfaz de Maestro Studio 0.9.8 instalada en `/Applications`. Sobre ella:
+   - la traduce al español (`translations_es.json`);
+   - quita el inicio de sesión obligatorio de Maestro Cloud;
+   - desactiva PostHog;
+   - le inyecta `src/shim/electron-shim.js`.
+2. **Shim de Electron** (`src/shim/electron-shim.js`): la interfaz espera ejecutarse en Electron. El shim le da `require("electron").ipcRenderer` y los módulos de Node que carga al arrancar, y manda cada canal IPC al backend Rust.
+3. **Núcleo nativo** (`src-tauri/`): reemplaza el proceso principal de Electron.
+   - `studio-server.jar` (puerto `5050`), con su JVM empaquetada.
+   - `simulator-server`, el espejo en vivo de iOS y Android vía MJPEG.
+   - Workspace y archivos: árbol, vigilancia de cambios, crear, renombrar, mover, duplicar y enviar a la Papelera.
+   - Ajustes (Android SDK, editor), ventanas, menú nativo y diálogos de macOS.
+4. **Cero telemetría**: la CSP solo permite conexiones a `localhost`, así que Sentry y PostHog no pueden enviar nada. Maestro Cloud, OAuth y las actualizaciones automáticas están deshabilitados.
 
 ---
 
-## Estructura del Proyecto
+## Requisitos
 
-- `src-tauri/` — Backend nativo en **Rust (Tauri v2)** (`models.rs`, `engines.rs`, `ai_reports.rs`, `lib.rs`).
-- `src/` — Frontend en **React 18 + TypeScript + Tailwind CSS v4** (`App.tsx`, `i18n/es.ts`, `services/bridge.ts`, `components/`).
-- `resources/engines/` — Motores locales extraídos (`studio-server.jar`, `bundled-jvm`, `bundled-simulator-server`).
-- `packages/maestro-oss/` — Clon completo del repositorio abierto `mobile-dev-inc/maestro`.
-- `sample-flows/` — Flujos YAML de ejemplo en español listos para ejecutar.
-- `reports/` — Reportes HTML generados localmente.
+- macOS con **Maestro Studio 0.9.8** instalado en `/Applications`, de donde se toman la interfaz y los motores (`MaestroStudio.dmg`).
+- Node.js y Rust (cargo).
+- Xcode (simuladores iOS) y/o Android SDK (emuladores).
 
 ---
 
-## Comandos Rápidos
+## Comandos
 
 ```bash
-# Modo desarrollo con ventana nativa de macOS (Rust + Tauri v2)
+# Prepara studio-ui/ y engines-bundle/ (lo ejecutan también los comandos de Tauri)
+npm run studio-ui
+
+# Desarrollo con ventana nativa
 npm run tauri:dev
 
-# Modo desarrollo web rápido (http://localhost:1420)
-npm run dev
-
-# Compilar aplicación nativa (.app / .dmg)
+# Compilar la app (.app / .dmg, incluye JVM + studio-server + simulator-server)
 npm run tauri:build
 ```
+
+Para abrir directamente una carpeta como workspace:
+
+```bash
+"Clean Studio.app/Contents/MacOS/clean-studio" ~/ruta/a/mis-flujos
+```
+
+---
+
+## Estructura
+
+- `scripts/build-studio-ui.mjs`: extrae, traduce y parchea la interfaz, y prepara `engines-bundle/`.
+- `src/shim/electron-shim.js`: emulación de Electron dentro del webview.
+- `src-tauri/src/`:
+  - `ipc.rs`: despacho de canales.
+  - `server.rs` y `simulator.rs`: los motores.
+  - `workspace.rs`, `settings.rs` y `windows.rs`.
+  - `bridge.rs` y `paths.rs`: utilidades compartidas.
+- `sample-flows/`: flujos YAML de ejemplo en español.
+- `legacy/`: la interfaz React anterior, como referencia.
+- `build_real_clean_studio.py`: variante que reempaqueta la app Electron original traducida.

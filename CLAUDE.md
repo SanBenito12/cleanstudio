@@ -4,51 +4,55 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## What this is
 
-Clean Studio is a Spanish-language, telemetry-free desktop front end for Maestro (mobile/web E2E testing). It doesn't reimplement Maestro. It orchestrates Maestro's prebuilt engines (`studio-server.jar` on port 5050 and the `simulator-server` MJPEG streamer) from a Tauri v2 (Rust) shell with a React 18 + TypeScript + Tailwind v4 UI. All user-facing text, error messages, logs and generated YAML comments are in Spanish. Keep new UI strings and Rust error strings in Spanish too.
-
-The repo has **two independent tracks**:
-
-1. **Tauri app** (`src/`, `src-tauri/`): the actual Clean Studio application.
-2. **Electron repack** (`build_real_clean_studio.py`, `translations_es.json`, `patched-studio-files/`): a separate script that clones `/Applications/Maestro Studio.app` into `~/Downloads/Clean Studio.app`. It string-replaces translations into the bundled JS, turns PostHog opt-out on, rewrites `app.asar` (appending patched files and recomputing per-file integrity plus the header hash in `Info.plist` `ElectronAsarIntegrity`), then ad-hoc codesigns the result. It slices `index-0XZa5ilO.js` at hardcoded byte offsets so the Monaco section isn't touched by the translations, which means it only works for that exact Maestro Studio build (v0.9.8). It reads source files from a hardcoded `EXTRACTED_DIR` outside the repo.
+Clean Studio is a Spanish-language, account-free, telemetry-free desktop app for Maestro (mobile/web E2E testing). It runs the **original Maestro Studio 0.9.8 renderer** (taken from `/Applications/Maestro Studio.app/Contents/Resources/app.asar`) inside a Tauri v2 window. A Rust backend replaces Electron's main process. Keep new user-facing strings and Rust error/log messages in Spanish.
 
 ## Commands
 
 ```bash
-npm run dev            # Vite only, http://localhost:1420 (browser mode; see "Dual runtime" below)
-npm run tauri:dev      # Native window; runs `npm run dev` first
-npm run tauri:build    # .app + .dmg; runs `npm run build` (tsc + vite build) first
-npm run build          # Type-check (tsc, noEmit) + Vite build into dist/
-cd src-tauri && cargo check   # Check the Rust side quickly
-python3 build_real_clean_studio.py   # Electron repack track (needs Maestro Studio.app installed)
+npm run studio-ui        # node scripts/build-studio-ui.mjs → studio-ui/ (+ engines-bundle/ on first run)
+npm run tauri:dev        # runs studio-ui first, then the native window
+npm run tauri:build      # .app + .dmg (bundles engines-bundle/ as resources; ~460 MB)
+npx tauri build --debug --bundles app   # faster debug .app, used for manual testing
+cd src-tauri && cargo check --offline   # quick Rust check
 ```
 
-There's no test suite or linter configured for this project. `tsc` (strict mode) is the only static check on the frontend.
+There are no tests or linters. To debug the UI, run the binary directly (`"…/Clean Studio.app/Contents/MacOS/clean-studio" [workspace-dir]`) and read stderr. The shim forwards renderer `console.error`/`console.warn`, uncaught errors and rejections as `[RENDERER:level]` lines. Passing a directory argument opens it as the workspace, which skips the native folder picker.
 
 ## Architecture
 
-### Frontend ↔ Rust bridge
+Three pieces must stay in sync:
 
-- `src/services/bridge.ts` is the only place the UI talks to the backend. Each function calls a Tauri command through `invoke(...)`, and every one of those commands has to be registered in `tauri::generate_handler![...]` in `src-tauri/src/lib.rs`. To add a command: write the `#[tauri::command]` in `engines.rs` or `ai_reports.rs`, register it in `lib.rs`, then wrap it in `bridge.ts`. Tauri maps camelCase JS argument keys to snake_case Rust parameters (for example `deviceId` → `device_id`). Struct payloads go in as `{ req: ... }`.
-- Shared serde types live in `src-tauri/src/models.rs`, and `bridge.ts` mirrors them as TS interfaces with the same snake_case field names. `AppState` keeps the spawned `studio-server` and simulator child processes plus a shared log buffer. Server stdout/stderr also goes out as `server-log` Tauri events.
+1. **`scripts/build-studio-ui.mjs`** parses `app.asar` (no dependencies), extracts `dist/` to `studio-ui/`, and patches the main bundle `index-0XZa5ilO.js`:
+   - It applies `translations_es.json["frontend"]` only to the character ranges outside Monaco (hardcoded offsets).
+   - It applies exact-string patches through `mustReplace`, which fails loudly when Maestro changes:
+     - `new Hae` (electron-store, which writes with `node:fs`) → `new globalThis.CleanStudioStore`
+     - the onboarding skips the Maestro Cloud sign-in step
+     - the layout no longer reopens onboarding when there's no auth token
+     - Monaco's `editorWorkerService` worker label
+     - PostHog opt-out
+   - It injects `<script src="./electron-shim.js">` before the module script.
+   - It copies the engines (symlinks in `resources/engines/` → real files) into `engines-bundle/` once, because Tauri doesn't bundle symlinks.
+2. **`src/shim/electron-shim.js`** is a classic, synchronous script that runs before the bundle. It defines `window.require`:
+   - `electron` → an `ipcRenderer` emulation;
+   - `path`/`os`/`util`/`process` → small real implementations;
+   - `fs`/`crypto`/`assert`/… → inert proxies, because the bundle only enumerates their exports at load time.
+   
+   It also defines `CleanStudioStore` (localStorage), opens external links with the system browser, maps `-webkit-app-region: drag` classes to `startDragging()`, and forwards console errors to Rust. It requires `app.withGlobalTauri: true`.
+3. **`src-tauri/src/`** reimplements the original `dist-electron/main.js`. Read that file (inside the asar) for exact semantics.
+   - `ipc.rs` exposes two commands:
+     - `ipc_send` = `ipcRenderer.send`
+     - `ipc_invoke` = `ipcRenderer.invoke`
+   - `ipc.rs` `match`es on the original channel names. Main→renderer messages use `bridge::send(app, channel, args)`, which emits one Tauri event `cs-ipc {channel, args}`. The shim dispatches it to `ipcRenderer.on(channel)` listeners as `(event, ...args)`. Payload shapes must match the original exactly (e.g. `server-status {running, port}`, `file-content-loaded {content, path}`, `directory-contents (path, items)`).
+   - `server.rs` runs `studio-server.jar` on port 5050 using the bundled JVM. It kills orphaned servers that run our own jar path; it never touches a running Maestro Studio. `simulator.rs` runs `simulator-server <ios|android> --id <udid>`, parses `stream_ready … stream.mjpeg` and writes device commands to stdin.
+   - `workspace.rs` handles the file tree (depth-2 preload plus expanded folders) and a polling watcher (no `notify` crate). `settings.rs` stores JSON in `app_config_dir()/config.json`. `windows.rs` holds the main and about windows, the menu and the fullscreen events. `bridge.rs` provides native dialogs via `osascript` (no dialog plugin). `paths.rs` resolves engines in this order: bundled resources → `resources/engines/` → `/Applications/Maestro Studio.app`.
+   - `lib.rs` handles SIGINT/SIGTERM (via `libc`) so child processes are cleaned up.
+   - Cloud/OAuth/auto-update channels return neutral values or Spanish errors.
 
-### Dual runtime (important)
-
-`bridge.ts` checks `isTauriRuntime()`. In plain-browser mode (`npm run dev`) most functions return **hardcoded mock data**: fake devices, sample-flow paths, a canned AI flow, and fake success messages. `executeCommandOnMaestroServer` POSTs straight to `http://localhost:5050/api/devices/runCommand` and **treats network failures as success**. `fetchLocalDevices` falls back to mock devices even inside Tauri when nothing is detected. So a passing run in the UI doesn't prove anything actually executed. Check against a real device and server.
-
-### Rust backend (`src-tauri/src/`)
-
-- `engines.rs`: resolves engine binaries under `resources/engines/` (`dist-server/studio-server.jar`, `bundled-jvm/mac-arm64/.../java`, `bundled-simulator-server/mac-universal/simulator-server`). If those are missing it falls back to the copies inside `/Applications/Maestro Studio.app/.../app.asar.unpacked/`. It runs `java -jar studio-server.jar`, injecting `ANDROID_HOME`/`PATH`, and detects devices with `xcrun simctl` and `adb devices -l`. Server status means "is port 5050 open", so an externally started server also counts as running.
-- `ai_reports.rs`: workspace file CRUD for YAML flows, seeding of `sample-flows/` at startup (`ensure_sample_flows_internal`, called from `run()`), AI flow generation (Ollama at `127.0.0.1:11434`, OpenAI, Gemini, with an offline template fallback), and self-contained HTML report export to `reports/`.
-- `base_project_dir()` is **hardcoded** to `/Users/ilove/Downloads/clean-studio` and falls back to the current working directory. Logs, reports, sample flows and engine lookup all hang off it. Several mock paths in `bridge.ts` are hardcoded the same way.
-
-### Frontend (`src/`)
-
-- `App.tsx` holds most of the state: the open flow, YAML editor (Monaco), step-by-step run loop, and diagnostics polling. It composes `SidebarWorkspace`, `DeviceMirrorInspector` (live mirror plus a view-hierarchy picker that generates selectors; it uses `DEFAULT_UI_ELEMENTS` mock nodes from `bridge.ts`) and `AiAssistantModal`.
-- `src/i18n/es.ts` holds the Maestro command catalog (`MAESTRO_COMMANDS_ES`, with the snippets the step builder inserts), the flow templates (`FLOW_TEMPLATES_ES`, also used as browser-mode file contents), and the Spanish translations of Maestro errors.
+The renderer talks to `studio-server` directly over HTTP/SSE at `http://localhost:5050` (CORS `*`). The CSP in `tauri.conf.json` allows only localhost connections, and that's what blocks telemetry.
 
 ## Other directories
 
-- `packages/maestro-oss/`: a vendored clone of upstream `mobile-dev-inc/maestro` (Kotlin/Gradle), for reference only. Nothing here builds or imports it. It has its own `CLAUDE.md`/`AGENTS.md`, which apply when working inside it.
-- `resources/engines/`: extracted prebuilt binaries (large; don't edit). Vite's watcher ignores `src-tauri/`, `packages/` and `resources/`.
-- `.clean-studio-home/`: runtime home dir (`.maestro`, `.android`, server log) created when the engines run.
-- `dist/`, `src-tauri/target/`, `reports/`: generated output.
+- `studio-ui/`, `engines-bundle/`, `src-tauri/target/`: generated, gitignored.
+- `legacy/`: the previous hand-written React UI and its Rust commands; not built.
+- `build_real_clean_studio.py`, `patched-studio-files/`: an older, separate track that repacks the Electron app itself.
+- `packages/maestro-oss/`: a reference checkout of `mobile-dev-inc/maestro` (gitignored, has its own `CLAUDE.md`).

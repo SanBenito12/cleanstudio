@@ -8,8 +8,25 @@ pub const MAIN: &str = "main";
 pub const ABOUT: &str = "about";
 const APP_NAME: &str = "Clean Studio";
 
+/// `clean-studio <carpeta>` abre esa carpeta como workspace: el renderer la lee de
+/// `localStorage["maestro-workspace-path"]` al arrancar.
+fn workspace_from_args() -> Option<String> {
+    let arg = std::env::args().skip(1).find(|a| !a.starts_with('-'))?;
+    let path = std::fs::canonicalize(arg).ok()?;
+    path.is_dir().then(|| path.to_string_lossy().to_string())
+}
+
 pub fn create_main(app: &AppHandle) -> tauri::Result<WebviewWindow> {
-    let window = WebviewWindowBuilder::new(app, MAIN, WebviewUrl::App("index.html".into()))
+    let mut builder = WebviewWindowBuilder::new(app, MAIN, WebviewUrl::App("index.html".into()));
+    if let Some(dir) = workspace_from_args() {
+        app.state::<crate::AppState>().settings.add_recent_workspace(&dir);
+        let value = serde_json::to_string(&serde_json::to_string(&dir).unwrap_or_default()).unwrap_or_default();
+        builder = builder.initialization_script(format!(
+            "try{{localStorage.setItem(\"maestro-workspace-path\",{})}}catch(e){{}}",
+            value
+        ));
+    }
+    let window = builder
         .title(APP_NAME)
         .inner_size(1200.0, 800.0)
         .min_inner_size(900.0, 600.0)

@@ -32,6 +32,27 @@ pub fn status(app: &AppHandle) -> Value {
     }
 }
 
+/// Termina un studio-server que una ejecución anterior de Clean Studio dejó en el puerto
+/// (p. ej. si la app murió por una señal). Solo si usa nuestro mismo jar: nunca toca Maestro Studio.
+fn kill_orphan_server(jar: &std::path::Path) {
+    let Ok(out) = Command::new("lsof").args(["-t", &format!("-iTCP:{}", PORT), "-sTCP:LISTEN"]).output() else {
+        return;
+    };
+    let jar = jar.to_string_lossy();
+    for pid in String::from_utf8_lossy(&out.stdout).split_whitespace() {
+        let cmdline = Command::new("ps")
+            .args(["-o", "command=", "-p", pid])
+            .output()
+            .map(|o| String::from_utf8_lossy(&o.stdout).to_string())
+            .unwrap_or_default();
+        if cmdline.contains(jar.as_ref()) {
+            eprintln!("[SERVER] Terminando studio-server huérfano (pid {})", pid);
+            let _ = Command::new("kill").args(["-9", pid]).status();
+            thread::sleep(std::time::Duration::from_millis(500));
+        }
+    }
+}
+
 pub fn start(app: &AppHandle) -> bool {
     let state = app.state::<AppState>();
     if state.server.child.lock().unwrap().is_some() {
@@ -39,6 +60,7 @@ pub fn start(app: &AppHandle) -> bool {
     }
 
     let jar = paths::studio_jar(app);
+    kill_orphan_server(&jar);
     let java = paths::java_bin(app);
     let java_home = paths::java_home(app);
     let logs_dir = app

@@ -95,6 +95,22 @@ console.log(`Traducciones aplicadas: ${t1.count + t2.count}`);
 // electron-store escribe con node:fs desde el renderer; se sustituye por un store del shim
 js = mustReplace(js, "new Hae,", "new globalThis.CleanStudioStore,", "electron-store");
 js = mustReplace(js, "new Hae;", "new globalThis.CleanStudioStore;", "electron-store");
+// Sin cuenta: la bienvenida va directo a "Comenzar" (workspace), sin el paso de inicio de sesión
+js = mustReplace(
+  js,
+  "a===0&&k(Van,{onNext:h})",
+  "a===0&&k(Van,{onNext:()=>{d(1),l(3)}})",
+  "onboarding sin login",
+);
+// …y el layout ya no reabre el asistente por no tener token de Maestro Cloud
+js = mustReplace(js, "D.useEffect(()=>{!s&&!n&&c(!0)},[n,s])", "D.useEffect(()=>{},[n,s])", "gate de token");
+// Monaco pide el worker principal como "editorWorkerService": sin esto cae al hilo principal
+js = mustReplace(
+  js,
+  'case"editor-worker":return new Eln;',
+  'case"editor-worker":case"editorWorkerService":return new Eln;',
+  "worker de Monaco",
+);
 // PostHog: nunca capturar (además la CSP bloquea cualquier envío)
 js = mustReplace(
   js,
