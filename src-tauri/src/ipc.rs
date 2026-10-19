@@ -107,6 +107,10 @@ fn handle_send(app: &AppHandle, window: &WebviewWindow, channel: &str, args: &[V
 
         // Propio de Clean Studio: evidencia de ejecuciones (video + reporte)
         "cs-run-update" => crate::runs::update(app, &arg_str(args, 0), &arg_str(args, 1)),
+        // Botón "Claude" de la cabecera: mismo diálogo que el menú "Conectar con Claude…"
+        "cs-connect-claude" => {
+            std::thread::spawn(crate::windows::connect_claude);
+        }
 
         // Propio de Clean Studio: consola del renderer
         "renderer-log" => eprintln!("[RENDERER:{}] {}", arg_str(args, 0), arg_str(args, 1)),

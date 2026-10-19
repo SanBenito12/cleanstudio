@@ -246,7 +246,7 @@ pub fn on_menu_event(app: &AppHandle, id: &str) {
 
 /// "Conectar con Claude…": registra `clean-studio mcp` en Claude Desktop o copia el comando
 /// para Claude Code. Así Claude (con la suscripción del usuario) controla Clean Studio.
-fn connect_claude() {
+pub fn connect_claude() {
     let exe = std::env::current_exe().map(|p| p.to_string_lossy().to_string()).unwrap_or_default();
     let code_cmd = format!("claude mcp add clean-studio -- \"{}\" mcp", exe);
     let choice = bridge::message_box(&serde_json::json!({

@@ -180,6 +180,30 @@ const UI_PATCHES = [
   ],
 ];
 for (const [from, to, label] of UI_PATCHES) js = mustReplace(js, from, to, label);
+
+// Cabecera: botón "Claude" junto al selector de tema (abre "Conectar con Claude…" del backend)
+const sparkRays = Array.from({ length: 8 }, (_, i) => {
+  const a = (i * Math.PI) / 4;
+  const r1 = i % 2 ? 3.2 : 2.6;
+  const r2 = i % 2 ? 8.2 : 10;
+  const p = (r) => [12 + r * Math.cos(a), 12 + r * Math.sin(a)].map((n) => n.toFixed(2));
+  const [x1, y1] = p(r1);
+  const [x2, y2] = p(r2);
+  return `k("line",{x1:${x1},y1:${y1},x2:${x2},y2:${y2}})`;
+}).join(",");
+const claudeButton =
+  'k(xt,{variant:"ghost",size:"sm",className:"gap-1.5 px-2.5 font-medium",' +
+  'title:"Conectar con Claude: deja que Claude vea tus dispositivos, escriba y ejecute pruebas",' +
+  '"aria-label":"Conectar con Claude",onClick:()=>ur("cs-connect-claude"),children:[' +
+  'k("svg",{viewBox:"0 0 24 24",width:16,height:16,"aria-hidden":!0,' +
+  `children:k("g",{stroke:"#D97757",strokeWidth:2.4,strokeLinecap:"round",children:[${sparkRays}]})}),` +
+  'k("span",{children:"Claude"})]})';
+js = mustReplace(
+  js,
+  'children:[k(NBe,{}),e&&k(xt,{variant:"ghost",size:"icon-sm",onClick:e,className:"text-amber-500 hover:text-amber-400"',
+  `children:[${claudeButton},k(NBe,{}),e&&k(xt,{variant:"ghost",size:"icon-sm",onClick:e,className:"text-amber-500 hover:text-amber-400"`,
+  "cabecera: botón Claude",
+);
 // Pasos y errores del panel de ejecución pasan por el traductor del shim (CleanStudioErrores)
 js = mustReplace(
   js,
