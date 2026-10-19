@@ -206,6 +206,7 @@ fn flatten(commands: &Value, level: usize, out: &mut Vec<Value>) {
             "pasoOriginal": original,
             "estado": c["status"].as_str().unwrap_or("PENDING"),
             "duracionMs": duracion,
+            "inicioMs": ms(&c["timestamp"]),
             "error": error,
             "explicacion": explicacion,
             "sugerencia": sugerencia,
@@ -230,6 +231,8 @@ fn flow_record(flow: &Value) -> Value {
         "estado": flow["flowStatus"].as_str().unwrap_or(""),
         "pasos": pasos,
         "yaml": yaml,
+        // Para sincronizar los pasos con el video en el reporte
+        "grabacionInicioMs": ms(&flow["screenRecordingStartTimestamp"]),
     })
 }
 
@@ -263,11 +266,21 @@ pub(crate) fn build_record(
     videos: &[String],
     capturas: &[String],
 ) -> Value {
-    let flujos: Vec<Value> = if kind == "workspace" {
+    let mut flujos: Vec<Value> = if kind == "workspace" {
         last["flows"].as_object().map(|m| m.values().map(flow_record).collect()).unwrap_or_default()
     } else {
         vec![flow_record(last)]
     };
+    // Video de cada flujo (copy_videos usa el mismo orden de flujos)
+    let total = flujos.len();
+    for (i, flujo) in flujos.iter_mut().enumerate() {
+        let video = if total == 1 {
+            videos.iter().find(|v| v.as_str() == "video.mp4")
+        } else {
+            videos.iter().find(|v| v.starts_with(&format!("video-{}-", i + 1)))
+        };
+        flujo["video"] = json!(video);
+    }
     let estado = if kind == "workspace" { &last["workspaceStatus"] } else { &last["flowStatus"] };
     // Inicio y fin según los tiempos del motor (primer paso → último paso); si faltan, los nuestros
     let all_flows: Vec<&Value> = if kind == "workspace" {
@@ -310,7 +323,12 @@ pub(crate) fn collect_screenshots(dir: &Path, since: SystemTime) -> Vec<String> 
         for entry in rd.flatten() {
             let name = entry.file_name().to_string_lossy().to_string();
             let recent = entry.metadata().and_then(|m| m.modified()).map(|m| m >= since).unwrap_or(false);
-            if recent && name.to_lowercase().ends_with(".png") && std::fs::copy(entry.path(), dir.join(&name)).is_ok() {
+            // Si dos sesiones tienen una captura con el mismo nombre, queda una sola (la más reciente)
+            if recent
+                && name.to_lowercase().ends_with(".png")
+                && !found.contains(&name)
+                && std::fs::copy(entry.path(), dir.join(&name)).is_ok()
+            {
                 found.push(name);
             }
         }
@@ -349,7 +367,7 @@ mod tests {
         let last = text.lines().filter_map(|l| l.strip_prefix("data:")).last().unwrap().trim();
         let last: Value = serde_json::from_str(last).unwrap();
         std::fs::create_dir_all(&out).unwrap();
-        let started = SystemTime::now() - Duration::from_secs(3600);
+        let started = SystemTime::now() - Duration::from_secs(86_400);
         let videos = copy_videos("flow", &last, &out);
         let capturas = collect_screenshots(&out, started);
         let device = Some(json!({ "plataforma": "iOS", "id": "C7D925A8", "nombre": "iPhone 17" }));
