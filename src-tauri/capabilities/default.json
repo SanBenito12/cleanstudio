@@ -2,7 +2,7 @@
   "$schema": "../gen/schemas/desktop-schema.json",
   "identifier": "default",
   "description": "Permisos de Clean Studio: IPC propio, eventos y arrastre de ventana",
-  "windows": ["main", "about"],
+  "windows": ["main", "about", "claude"],
   "permissions": [
     "core:default",
     "core:window:allow-start-dragging"

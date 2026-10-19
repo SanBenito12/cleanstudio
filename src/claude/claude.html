@@ -1,0 +1,122 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Claude en Clean Studio</title>
+<style>
+/* Ventana de conexión con Claude: misma paleta neutra de la app, naranja solo en la chispa */
+:root {
+  --bg: #f6f6f4; --card: #ffffff; --fg: #161616; --muted: #64645f; --line: #e2e2dd;
+  --btn: #161616; --btn-fg: #ffffff; --ghost: #ececE8;
+  --ok: #1d7a46; --ok-bg: #e3f3e9; --warn: #8a5a00; --warn-bg: #fdf1d8; --bad: #b42318; --bad-bg: #fde8e6;
+  --spark: #D97757; --code: #f0f0ec;
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #0e0e0f; --card: #18181a; --fg: #ededea; --muted: #a2a29d; --line: #2a2a2c;
+    --btn: #ededea; --btn-fg: #111111; --ghost: #232325;
+    --ok: #5cc98a; --ok-bg: #15301f; --warn: #f0c060; --warn-bg: #352a10; --bad: #ff8a7a; --bad-bg: #3a1712;
+    --code: #222224; color-scheme: dark;
+  }
+}
+* { box-sizing: border-box }
+html, body { margin: 0; background: var(--bg); color: var(--fg);
+  font: 14px/1.5 -apple-system, BlinkMacSystemFont, "SF Pro Text", "Helvetica Neue", sans-serif; }
+.drag { position: fixed; inset: 0 0 auto 0; height: 38px; }
+main { padding: 46px 24px 24px; display: grid; gap: 16px; }
+header { display: flex; gap: 14px; align-items: center; }
+header svg { width: 40px; height: 40px; flex: none; }
+h1 { font-size: 20px; margin: 0; letter-spacing: -0.01em; }
+.sub { color: var(--muted); margin: 2px 0 0; }
+.banner { display: flex; align-items: center; gap: 10px; padding: 12px 14px; border-radius: 12px; font-weight: 600; }
+.banner .dot { width: 9px; height: 9px; border-radius: 50%; background: currentColor; flex: none; }
+.banner small { display: block; font-weight: 400; opacity: .85; }
+.ok { color: var(--ok); background: var(--ok-bg); }
+.warn { color: var(--warn); background: var(--warn-bg); }
+.bad { color: var(--bad); background: var(--bad-bg); }
+.muted { color: var(--muted); background: var(--code); }
+section { background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 6px 16px; }
+.row { display: grid; grid-template-columns: 1fr auto; gap: 4px 12px; align-items: center; padding: 12px 0; }
+.row + .row { border-top: 1px solid var(--line); }
+.row h2 { font-size: 14px; margin: 0; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.row p { margin: 0; color: var(--muted); font-size: 13px; grid-column: 1 / -1; }
+.pill { font-size: 12px; font-weight: 600; padding: 1px 8px; border-radius: 999px; white-space: nowrap; }
+button { font: inherit; font-weight: 600; border: 0; border-radius: 8px; padding: 6px 12px; cursor: pointer;
+  background: var(--btn); color: var(--btn-fg); white-space: nowrap; }
+button.ghost { background: var(--ghost); color: var(--fg); }
+button:disabled { opacity: .5; cursor: default; }
+button:focus-visible { outline: 2px solid var(--spark); outline-offset: 2px; }
+code.cmd { display: block; grid-column: 1 / -1; background: var(--code); border-radius: 8px; padding: 8px 10px;
+  font: 12px/1.4 ui-monospace, "SF Mono", Menlo, monospace; overflow-wrap: anywhere; }
+h3 { font-size: 13px; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); margin: 6px 0 0; }
+ol { margin: 0; padding: 10px 0 10px 20px; display: grid; gap: 6px; }
+.prompts { display: grid; gap: 8px; padding: 12px 0; }
+.prompt { display: grid; grid-template-columns: 1fr auto; gap: 10px; align-items: center;
+  background: var(--code); border-radius: 10px; padding: 8px 8px 8px 12px; }
+.prompt span { overflow-wrap: anywhere; }
+footer { display: flex; justify-content: space-between; align-items: center; color: var(--muted); font-size: 12px; gap: 12px; }
+.toast { position: fixed; left: 50%; bottom: 16px; transform: translateX(-50%); background: var(--btn); color: var(--btn-fg);
+  padding: 8px 14px; border-radius: 8px; font-weight: 600; opacity: 0; transition: opacity .2s; pointer-events: none; }
+.toast.show { opacity: 1; }
+@media (prefers-reduced-motion: reduce) { .toast { transition: none; } }
+</style>
+</head>
+<body>
+<div class="drag" data-tauri-drag-region></div>
+<main>
+  <header data-tauri-drag-region>
+    <svg viewBox="0 0 24 24" aria-hidden="true">
+      <g stroke="#D97757" stroke-width="2.4" stroke-linecap="round" id="spark"></g>
+    </svg>
+    <div>
+      <h1>Claude en Clean Studio</h1>
+      <p class="sub">Claude ve tus dispositivos, escribe pruebas, las ejecuta y lee los reportes. Usa tu suscripción de Claude, sin API key.</p>
+    </div>
+  </header>
+
+  <div id="banner" class="banner muted" role="status"><span class="dot"></span><div>Comprobando la conexión…</div></div>
+
+  <section aria-label="Estado">
+    <div class="row">
+      <h2>Claude Desktop <span id="desktop-pill" class="pill muted">…</span></h2>
+      <button id="desktop-btn" disabled>Conectar</button>
+      <p id="desktop-text">Comprobando…</p>
+    </div>
+    <div class="row">
+      <h2>Claude Code <span id="code-pill" class="pill muted">…</span></h2>
+      <button id="code-btn" disabled>Conectar</button>
+      <p id="code-text">Comprobando…</p>
+      <code class="cmd" id="code-cmd"></code>
+    </div>
+    <div class="row">
+      <h2>Servidor de Clean Studio para Claude <span id="server-pill" class="pill muted">…</span></h2>
+      <span></span>
+      <p id="server-text">Comprobando…</p>
+    </div>
+  </section>
+
+  <h3>Cómo usarlo</h3>
+  <section>
+    <ol>
+      <li><strong>Claude Desktop:</strong> después de conectar, ciérralo y vuelve a abrirlo. En un chat nuevo verás las herramientas de Clean Studio (icono de herramientas).</li>
+      <li><strong>Claude Code:</strong> abre la terminal en la carpeta de tus pruebas, escribe <code>claude</code> y pídele lo que necesites.</li>
+      <li>Ten un simulador o emulador a mano: Claude lo enciende y lo conecta solo. Cada prueba deja video y reporte en <code>.clean-studio/ejecuciones</code>.</li>
+    </ol>
+  </section>
+
+  <h3>Ejemplos para pedirle a Claude</h3>
+  <section>
+    <div class="prompts" id="prompts"></div>
+  </section>
+
+  <footer>
+    <span>Todo se ejecuta en tu Mac; Claude solo recibe lo que le muestran las herramientas.</span>
+    <button class="ghost" id="refresh">Volver a comprobar</button>
+  </footer>
+</main>
+<div class="toast" id="toast" aria-live="polite"></div>
+<script src="./claude.js"></script>
+</body>
+</html>

@@ -277,6 +277,10 @@ html = mustReplace(
   "shim",
 );
 fs.writeFileSync(htmlPath, html);
+// Ventana "Claude en Clean Studio" (página propia, fuera del bundle de la interfaz)
+for (const name of ["claude.html", "claude.js"]) {
+  fs.copyFileSync(path.join(ROOT, "src", "claude", name), path.join(OUT, name));
+}
 // El shim lleva incrustada la tabla de traducciones (la misma que usa errors.rs en Rust)
 const errores = JSON.parse(fs.readFileSync(path.join(ROOT, "src", "shim", "errores_es.json"), "utf8"));
 const shim = fs.readFileSync(path.join(ROOT, "src", "shim", "electron-shim.js"), "utf8");

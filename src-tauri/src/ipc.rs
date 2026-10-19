@@ -109,7 +109,8 @@ fn handle_send(app: &AppHandle, window: &WebviewWindow, channel: &str, args: &[V
         "cs-run-update" => crate::runs::update(app, &arg_str(args, 0), &arg_str(args, 1)),
         // Botón "Claude" de la cabecera: mismo diálogo que el menú "Conectar con Claude…"
         "cs-connect-claude" => {
-            std::thread::spawn(crate::windows::connect_claude);
+            let handle = app.clone();
+            let _ = app.run_on_main_thread(move || windows::open_claude(&handle));
         }
 
         // Propio de Clean Studio: consola del renderer
@@ -164,6 +165,22 @@ fn handle_invoke(app: &AppHandle, channel: &str, args: &[Value]) -> Result<Value
             Value::Null
         }
         "show-message-box" => bridge::message_box(&arg(args, 0)),
+
+        // Ventana de Claude
+        "cs-claude-status" => crate::claude::status(),
+        "cs-claude-add-desktop" => {
+            crate::claude::add_desktop()?;
+            Value::Null
+        }
+        "cs-claude-add-code" => {
+            crate::claude::add_code()?;
+            Value::Null
+        }
+        "cs-claude-copy" => json!(crate::claude::copy(&arg_str(args, 0))),
+        "cs-claude-open-desktop" => {
+            crate::claude::open_claude_desktop();
+            Value::Null
+        }
 
         // Maestro Cloud deshabilitado: sin sesión
         "oauth-get-cached-token" | "oauth-validate-token" | "oauth-logout" => Value::Null,

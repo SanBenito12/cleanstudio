@@ -34,7 +34,7 @@
   
   En el menú **Ejecuciones** puedes abrir el último reporte o la carpeta, decidir si se guarda el video y si el reporte se abre al terminar.
 - **Errores en español**: cada paso y cada error del motor se muestran traducidos, con una explicación y cómo corregirlo. La tabla vive en `src/shim/errores_es.json` y la comparten la interfaz y los reportes.
-- **Claude controla Clean Studio (MCP)**: el menú **Clean Studio → Conectar con Claude…** registra la app en Claude Desktop o copia el comando para Claude Code. Funciona con tu suscripción de Claude, sin API key. Herramientas:
+- **Claude controla Clean Studio (MCP)**: el botón **Claude** de la cabecera (o el menú **Clean Studio → Conectar con Claude…**) abre una ventana que indica si ya funciona, conecta Claude Desktop y Claude Code con un clic y trae ejemplos para pedirle a Claude. Usa tu suscripción de Claude, sin API key. Herramientas:
 
   | Herramienta | Qué hace |
   |---|---|
@@ -48,7 +48,7 @@
   Para Claude Code:
 
   ```bash
-  claude mcp add clean-studio -- "/Applications/Clean Studio.app/Contents/MacOS/clean-studio" mcp
+  claude mcp add --scope user clean-studio -- "/Applications/Clean Studio.app/Contents/MacOS/clean-studio" mcp
   ```
 - **Sin nube ni cuentas**: no hay inicio de sesión, ni pestañas o avisos de Maestro Cloud, ni actualizaciones automáticas.
 

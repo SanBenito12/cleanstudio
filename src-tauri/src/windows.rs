@@ -195,9 +195,7 @@ pub fn on_menu_event(app: &AppHandle, id: &str) {
     match id {
         MENU_ABOUT => open_about(app),
         // Los diálogos de osascript bloquean: fuera del hilo principal
-        MENU_CLAUDE => {
-            std::thread::spawn(connect_claude);
-        }
+        MENU_CLAUDE => open_claude(app),
         MENU_LEARN_MORE => {
             let _ = bridge::open_external("https://github.com/SanBenito12/cleanstudio#readme");
         }
@@ -244,70 +242,20 @@ pub fn on_menu_event(app: &AppHandle, id: &str) {
     }
 }
 
-/// "Conectar con Claude…": registra `clean-studio mcp` en Claude Desktop o copia el comando
-/// para Claude Code. Así Claude (con la suscripción del usuario) controla Clean Studio.
-pub fn connect_claude() {
-    let exe = std::env::current_exe().map(|p| p.to_string_lossy().to_string()).unwrap_or_default();
-    let code_cmd = format!("claude mcp add clean-studio -- \"{}\" mcp", exe);
-    let choice = bridge::message_box(&serde_json::json!({
-        "title": "Conectar con Claude",
-        "message": "Conecta Clean Studio con Claude",
-        "detail": "Claude podrá ver tus dispositivos y la pantalla, escribir flujos, ejecutarlos y leer los reportes, usando tu suscripción de Claude. Todo sigue ejecutándose en tu Mac.",
-        "buttons": ["Agregar a Claude Desktop", "Copiar comando para Claude Code", "Cancelar"],
-        "defaultId": 0,
-        "cancelId": 2
-    }));
-    match choice["response"].as_u64() {
-        Some(0) => match add_to_claude_desktop(&exe) {
-            Ok(path) => {
-                bridge::message_box(&serde_json::json!({
-                    "title": "Conectar con Claude",
-                    "message": "Listo: Clean Studio quedó agregado a Claude Desktop.",
-                    "detail": format!("Cierra y vuelve a abrir Claude Desktop para ver las herramientas de Clean Studio.\n\nConfiguración: {}", path),
-                    "buttons": ["OK"]
-                }));
-            }
-            Err(e) => bridge::error_box("Conectar con Claude", &e),
-        },
-        Some(1) => {
-            let copied = std::process::Command::new("pbcopy")
-                .stdin(std::process::Stdio::piped())
-                .spawn()
-                .and_then(|mut c| {
-                    use std::io::Write;
-                    c.stdin.take().map(|mut i| i.write_all(code_cmd.as_bytes()));
-                    c.wait()
-                })
-                .is_ok();
-            bridge::message_box(&serde_json::json!({
-                "title": "Conectar con Claude",
-                "message": if copied { "Comando copiado." } else { "Copia este comando:" },
-                "detail": format!("Pégalo en la terminal donde usas Claude Code:\n\n{}", code_cmd),
-                "buttons": ["OK"]
-            }));
-        }
-        _ => {}
-    }
-}
+pub const CLAUDE: &str = "claude";
 
-fn add_to_claude_desktop(exe: &str) -> Result<String, String> {
-    let dir = crate::paths::home_dir().join("Library/Application Support/Claude");
-    if !dir.exists() {
-        return Err("No encontré Claude Desktop en este Mac. Instálalo desde claude.ai/download o usa la opción de Claude Code.".into());
+/// Ventana "Claude en Clean Studio": estado de la conexión, conectar y cómo usarlo.
+pub fn open_claude(app: &AppHandle) {
+    if let Some(w) = app.get_webview_window(CLAUDE) {
+        let _ = w.set_focus();
+        return;
     }
-    let file = dir.join("claude_desktop_config.json");
-    let mut config: serde_json::Value = std::fs::read_to_string(&file)
-        .ok()
-        .and_then(|t| serde_json::from_str(&t).ok())
-        .unwrap_or_else(|| serde_json::json!({}));
-    if !config.is_object() {
-        return Err("claude_desktop_config.json no tiene un formato válido; no lo modifiqué.".into());
-    }
-    if !config["mcpServers"].is_object() {
-        config["mcpServers"] = serde_json::json!({});
-    }
-    config["mcpServers"]["clean-studio"] = serde_json::json!({ "command": exe, "args": ["mcp"] });
-    let text = serde_json::to_string_pretty(&config).map_err(|e| e.to_string())?;
-    std::fs::write(&file, text).map_err(|e| format!("No se pudo guardar {}: {}", file.display(), e))?;
-    Ok(file.to_string_lossy().to_string())
+    let _ = WebviewWindowBuilder::new(app, CLAUDE, WebviewUrl::App("claude.html".into()))
+        .title("Claude en Clean Studio")
+        .inner_size(560.0, 760.0)
+        .min_inner_size(480.0, 560.0)
+        .title_bar_style(TitleBarStyle::Overlay)
+        .hidden_title(true)
+        .traffic_light_position(LogicalPosition::new(12.0, 14.0))
+        .build();
 }
