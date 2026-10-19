@@ -1,0 +1,269 @@
+{
+  "_comentario": "Traducciones de Clean Studio para los pasos y errores del motor. Lo usan el shim (interfaz) y src-tauri/src/errors.rs (reportes). Los patrones son expresiones regulares; $1, $2… insertan los grupos capturados.",
+  "pasos": [
+    [
+      "^Launch app \"(.+)\" with clear state$",
+      "Abrir la app \"$1\" con estado limpio"
+    ],
+    [
+      "^Launch app \"(.+)\"$",
+      "Abrir la app \"$1\""
+    ],
+    [
+      "^Double tap on (.+)$",
+      "Doble toque en $1"
+    ],
+    [
+      "^Long press on (.+)$",
+      "Mantener presionado $1"
+    ],
+    [
+      "^Tap on (.+)$",
+      "Tocar $1"
+    ],
+    [
+      "^Tap x(\\d+)$",
+      "Tocar $1 veces"
+    ],
+    [
+      "^Assert that (.+) is visible$",
+      "Verificar que $1 está visible"
+    ],
+    [
+      "^Assert that (.+) is not visible$",
+      "Verificar que $1 no está visible"
+    ],
+    [
+      "^Assert that (.+)$",
+      "Verificar que $1"
+    ],
+    [
+      "^Assert visible (.+)$",
+      "Verificar que está visible $1"
+    ],
+    [
+      "^Assert not visible (.+)$",
+      "Verificar que no está visible $1"
+    ],
+    [
+      "^Assert with AI: (.+)$",
+      "Verificar con IA: $1"
+    ],
+    [
+      "^Input text random (.+)$",
+      "Escribir texto aleatorio ($1)"
+    ],
+    [
+      "^Input text (.+)$",
+      "Escribir el texto $1"
+    ],
+    [
+      "^Erase (\\d+) characters$",
+      "Borrar $1 caracteres"
+    ],
+    [
+      "^Erase text$",
+      "Borrar el texto"
+    ],
+    [
+      "^Hide Keyboard$",
+      "Ocultar el teclado"
+    ],
+    [
+      "^Press back$",
+      "Presionar Atrás"
+    ],
+    [
+      "^Press (.+) key$",
+      "Presionar la tecla $1"
+    ],
+    [
+      "^Scroll vertically$",
+      "Desplazar verticalmente"
+    ],
+    [
+      "^Scrolling (\\w+) until (.+?) is visible(?: with .*)?$",
+      "Desplazar ($1) hasta que $2 esté visible"
+    ],
+    [
+      "^Swipe from \\((.+)\\) to \\((.+)\\) in (\\d+) ms$",
+      "Deslizar de ($1) a ($2) en $3 ms"
+    ],
+    [
+      "^Take screenshot (.+)$",
+      "Tomar captura $1"
+    ],
+    [
+      "^Wait for animation to end$",
+      "Esperar a que termine la animación"
+    ],
+    [
+      "^Clear state of (.+)$",
+      "Limpiar el estado de $1"
+    ],
+    [
+      "^Clear keychain$",
+      "Limpiar el llavero"
+    ],
+    [
+      "^Kill (.+)$",
+      "Forzar el cierre de $1"
+    ],
+    [
+      "^Stop recording$",
+      "Detener la grabación"
+    ],
+    [
+      "^Start recording (.+)$",
+      "Iniciar la grabación $1"
+    ],
+    [
+      "^Stop (.+)$",
+      "Detener $1"
+    ],
+    [
+      "^Open (.+) in browser$",
+      "Abrir $1 en el navegador"
+    ],
+    [
+      "^Open (.+)$",
+      "Abrir $1"
+    ],
+    [
+      "^Copy text from element with (.+)$",
+      "Copiar el texto del elemento con $1"
+    ],
+    [
+      "^Paste text$",
+      "Pegar el texto"
+    ],
+    [
+      "^Set location \\((.+)\\)$",
+      "Fijar la ubicación ($1)"
+    ],
+    [
+      "^Set orientation (.+)$",
+      "Cambiar la orientación a $1"
+    ],
+    [
+      "^Set permissions$",
+      "Configurar permisos"
+    ],
+    [
+      "^Toggle airplane mode$",
+      "Alternar el modo avión"
+    ],
+    [
+      "^Repeat (\\d+) times$",
+      "Repetir $1 veces"
+    ],
+    [
+      "^Repeat while (.+)$",
+      "Repetir mientras $1"
+    ],
+    [
+      "^Run flow$",
+      "Ejecutar subflujo"
+    ],
+    [
+      "^Run (.+) when (.+)$",
+      "Ejecutar $1 cuando $2"
+    ],
+    [
+      "^Run (.+)$",
+      "Ejecutar $1"
+    ]
+  ],
+  "errores": [
+    {
+      "patron": "IXErrorDomain, code=22",
+      "explicacion": "iOS no permite limpiar el estado (clearState) de una app del sistema.",
+      "sugerencia": "Quita clearState de launchApp o pruébalo con tu propia app."
+    },
+    {
+      "patron": "(?:App|Package) (\\S+) is not installed|Failed to get app binary directory for bundle (\\S+)",
+      "explicacion": "La app $1$2 no está instalada en el dispositivo.",
+      "sugerencia": "Instálala en el simulador o emulador, o revisa que el appId del flujo sea correcto."
+    },
+    {
+      "patron": "Unable to open (\\S+?):",
+      "explicacion": "No se pudo abrir la app $1.",
+      "sugerencia": "Comprueba que esté instalada y que el dispositivo esté desbloqueado."
+    },
+    {
+      "patron": "App crashed",
+      "explicacion": "La app se cerró inesperadamente (crash).",
+      "sugerencia": "Mira el video de la ejecución para ver el momento exacto y revisa los logs de la app."
+    },
+    {
+      "patron": "The app is not running",
+      "explicacion": "La app ya no está en ejecución: pudo cerrarse o fallar.",
+      "sugerencia": "Vuelve a abrirla con launchApp antes de este paso."
+    },
+    {
+      "patron": "No visible element found: (.+)",
+      "explicacion": "No hay ningún elemento visible que coincida con: $1.",
+      "sugerencia": "Usa el inspector del dispositivo para copiar el texto o id exacto, o haz scroll hasta el elemento."
+    },
+    {
+      "patron": "Element not found: (.+)",
+      "explicacion": "No se encontró el elemento: $1.",
+      "sugerencia": "Verifica el texto o id con el inspector. Si tarda en aparecer, agrega extendedWaitUntil con un timeout."
+    },
+    {
+      "patron": "Element not found",
+      "explicacion": "No se encontró el elemento buscado.",
+      "sugerencia": "Verifica el selector con el inspector del dispositivo."
+    },
+    {
+      "patron": "Assertion is false: (.+)",
+      "explicacion": "La verificación no se cumplió: $1.",
+      "sugerencia": "Comprueba que la pantalla esperada ya cargó; si tarda, usa extendedWaitUntil con timeout."
+    },
+    {
+      "patron": "Assertion is false",
+      "explicacion": "La verificación no se cumplió.",
+      "sugerencia": "Revisa la condición del paso y lo que muestra la pantalla en el video."
+    },
+    {
+      "patron": "Element does not contain text to copy",
+      "explicacion": "El elemento no tiene texto para copiar.",
+      "sugerencia": "Elige un elemento que muestre texto (una etiqueta o un campo)."
+    },
+    {
+      "patron": "iOS driver not ready in time",
+      "explicacion": "El driver de iOS no arrancó a tiempo.",
+      "sugerencia": "Reinicia el simulador y vuelve a ejecutar la prueba."
+    },
+    {
+      "patron": "Android driver did not start up in time",
+      "explicacion": "El driver de Android no arrancó a tiempo.",
+      "sugerencia": "Reinicia el emulador y vuelve a ejecutar la prueba."
+    },
+    {
+      "patron": "(?i)timed out|timeout",
+      "explicacion": "Se agotó el tiempo de espera.",
+      "sugerencia": "Aumenta el timeout del paso o revisa que el dispositivo responda."
+    },
+    {
+      "patron": "Invalid (?:element-relative )?point: (\\S+)",
+      "explicacion": "Las coordenadas $1 no son válidas.",
+      "sugerencia": "Usa porcentajes entre 0% y 100% o coordenadas dentro de la pantalla."
+    },
+    {
+      "patron": "Stopped by user",
+      "explicacion": "Ejecución detenida por el usuario.",
+      "sugerencia": ""
+    },
+    {
+      "patron": "(?i)device_disconnected|device disconnected|no_active_device|device_unavailable",
+      "explicacion": "El dispositivo se desconectó o no está disponible.",
+      "sugerencia": "Vuelve a seleccionarlo en la lista de dispositivos."
+    },
+    {
+      "patron": "(?i)yaml|parse|mapping values|unknown property",
+      "explicacion": "El YAML del flujo tiene un error de formato.",
+      "sugerencia": "Revisa la sangría y los nombres de los comandos en la línea indicada."
+    }
+  ]
+}

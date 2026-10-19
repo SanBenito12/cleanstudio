@@ -6,7 +6,7 @@ use tauri::{AppHandle, Manager, WebviewWindow};
 
 /// Versión que el renderer original espera (novedades, compatibilidad con studio-server).
 pub const STUDIO_VERSION: &str = "0.9.8";
-const CLOUD_DISABLED: &str = "Maestro Cloud está deshabilitado en Clean Studio (cero cuentas, cero telemetría).";
+const CLOUD_DISABLED: &str = "La nube está deshabilitada en Clean Studio: todo se ejecuta en tu Mac, sin cuentas.";
 const UPDATES_DISABLED: &str = "Las actualizaciones automáticas están deshabilitadas en Clean Studio.";
 
 fn arg(args: &[Value], i: usize) -> Value {
@@ -104,6 +104,9 @@ fn handle_send(app: &AppHandle, window: &WebviewWindow, channel: &str, args: &[V
         ),
         "start-download" => bridge::send(app, "update-error", vec![json!({ "message": UPDATES_DISABLED })]),
         "quit-and-install" | "sync-user-context" => {}
+
+        // Propio de Clean Studio: evidencia de ejecuciones (video + reporte)
+        "cs-run-update" => crate::runs::update(app, &arg_str(args, 0), &arg_str(args, 1)),
 
         // Propio de Clean Studio: consola del renderer
         "renderer-log" => eprintln!("[RENDERER:{}] {}", arg_str(args, 0), arg_str(args, 1)),

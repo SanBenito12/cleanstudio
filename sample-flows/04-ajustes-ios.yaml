@@ -1,0 +1,19 @@
+appId: com.apple.Preferences
+name: "Flujo 04 — Ajustes de iOS (funciona en cualquier simulador)"
+tags:
+  - demo
+  - ios
+---
+# 1. Abrir la app Ajustes que trae todo simulador de iOS
+#    (sin clearState: iOS no permite borrar el estado de sus apps del sistema)
+- launchApp
+
+# 2. Entrar a "General" y dejar evidencia
+- assertVisible: "General"
+- tapOn: "General"
+- assertVisible: "About"
+- takeScreenshot: "ajustes-general"
+
+# 3. Volver al inicio de Ajustes
+- tapOn: "Settings"
+- assertVisible: "General"

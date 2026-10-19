@@ -13,6 +13,8 @@ use tauri::{AppHandle, Manager};
 #[derive(Default)]
 pub struct SimulatorState {
     child: Mutex<Option<Child>>,
+    /// Dispositivo del espejo activo: (plataforma "ios"/"android", id). Lo usa la grabación de video.
+    device: Mutex<Option<(String, String)>>,
     stdin: Mutex<Option<ChildStdin>>,
     generation: AtomicU64,
 }
@@ -67,7 +69,7 @@ fn truncate(s: &str) -> String {
 pub fn start(app: &AppHandle, device_id: &str, target: &str) {
     stop(app, true);
     let Some(bin) = paths::simulator_server(app) else {
-        bridge::send(app, "simulator-stream-error", vec![json!("Simulator server binary not found")]);
+        bridge::send(app, "simulator-stream-error", vec![json!("No se encontró simulator-server dentro de Clean Studio")]);
         return;
     };
 
@@ -96,6 +98,7 @@ pub fn start(app: &AppHandle, device_id: &str, target: &str) {
     let stderr = child.stderr.take();
     *state.simulator.stdin.lock().unwrap() = child.stdin.take();
     *state.simulator.child.lock().unwrap() = Some(child);
+    *state.simulator.device.lock().unwrap() = Some((target.to_string(), device_id.to_string()));
 
     if let Some(stdout) = stdout {
         let app = app.clone();
@@ -176,6 +179,11 @@ pub fn start(app: &AppHandle, device_id: &str, target: &str) {
     });
 }
 
+/// Dispositivo conectado al espejo, si hay uno.
+pub fn current_device(app: &AppHandle) -> Option<(String, String)> {
+    app.state::<AppState>().simulator.device.lock().unwrap().clone()
+}
+
 fn is_current(app: &AppHandle, generation: u64) -> bool {
     app.state::<AppState>().simulator.generation.load(Ordering::SeqCst) == generation
 }
@@ -186,6 +194,9 @@ pub fn stop(app: &AppHandle, silent: bool) {
     state.simulator.generation.fetch_add(1, Ordering::SeqCst);
     *state.simulator.stdin.lock().unwrap() = None;
     let child = state.simulator.child.lock().unwrap().take();
+    if !silent {
+        *state.simulator.device.lock().unwrap() = None;
+    }
     if let Some(mut child) = child {
         let _ = child.kill();
         let _ = child.wait();

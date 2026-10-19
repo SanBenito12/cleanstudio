@@ -10,7 +10,7 @@ use std::time::{Duration, SystemTime};
 use tauri::{AppHandle, Manager};
 
 const PRELOAD_DEPTH: usize = 2;
-const IGNORED_DIRS: &[&str] = &["node_modules", ".git", ".cache", "dist", "build", ".next", ".turbo", ".venv"];
+const IGNORED_DIRS: &[&str] = &["node_modules", ".git", ".cache", "dist", "build", ".next", ".turbo", ".venv", ".clean-studio"];
 const WATCH_INTERVAL: Duration = Duration::from_millis(1000);
 const WATCH_MAX_ENTRIES: usize = 50_000;
 
@@ -19,6 +19,11 @@ pub struct WorkspaceState {
     root: Mutex<Option<PathBuf>>,
     expanded: Mutex<HashSet<PathBuf>>,
     generation: AtomicU64,
+}
+
+/// Carpeta raíz del workspace abierto, si hay uno.
+pub fn current_root(app: &AppHandle) -> Option<PathBuf> {
+    app.state::<AppState>().workspace.root.lock().unwrap().clone()
 }
 
 fn is_ignored(name: &str) -> bool {
@@ -207,8 +212,8 @@ pub fn save_file(app: &AppHandle, opts: &Value) {
         }
     }
     match std::fs::write(&path, content) {
-        Ok(_) => bridge::send(app, "alert", vec![json!("File saved successfully.")]),
-        Err(e) => bridge::send(app, "alert", vec![json!(format!("Failed to save file: {}", e))]),
+        Ok(_) => bridge::send(app, "alert", vec![json!("Archivo guardado.")]),
+        Err(e) => bridge::send(app, "alert", vec![json!(format!("No se pudo guardar el archivo: {}", e))]),
     }
 }
 
@@ -223,7 +228,7 @@ pub fn open_workspace(app: &AppHandle) -> Value {
 }
 
 pub fn create_workspace(app: &AppHandle) -> Value {
-    let Some(dir) = bridge::choose_file_name("Crea una carpeta nueva para tu workspace", "Maestro") else {
+    let Some(dir) = bridge::choose_file_name("Crea una carpeta nueva para tu workspace", "Pruebas") else {
         return Value::Null;
     };
     if std::fs::create_dir_all(&dir).is_err() {
@@ -238,9 +243,9 @@ pub fn recent_workspaces(app: &AppHandle) -> Value {
     json!(app.state::<AppState>().settings.recent_workspaces())
 }
 
-const EXISTS_DIR: &str = "A folder with this name already exists. Please choose a different name.";
+const EXISTS_DIR: &str = "Ya existe una carpeta con ese nombre. Elige otro.";
 const EXISTS_FILE: &str =
-    "A file with this name already exists. Please choose a different name or rename the existing file.";
+    "Ya existe un archivo con ese nombre. Elige otro o renombra el existente.";
 
 fn exists_error(path: &Path) -> Option<Value> {
     if !path.exists() {
@@ -294,7 +299,7 @@ fn move_to_trash(path: &Path) -> std::io::Result<()> {
 pub fn delete(app: &AppHandle, opts: &Value) -> Value {
     let path = PathBuf::from(str_arg(opts, "path"));
     if !path.exists() {
-        return fail("File or directory does not exist");
+        return fail("El archivo o la carpeta no existe");
     }
     match move_to_trash(&path) {
         Ok(_) => {
@@ -308,10 +313,10 @@ pub fn delete(app: &AppHandle, opts: &Value) -> Value {
 pub fn duplicate(app: &AppHandle, opts: &Value) -> Value {
     let path = PathBuf::from(str_arg(opts, "path"));
     if !path.exists() {
-        return fail("File does not exist");
+        return fail("El archivo no existe");
     }
     if !path.is_file() {
-        return fail("Only files can be duplicated");
+        return fail("Solo se pueden duplicar archivos");
     }
     let dir = path.parent().unwrap_or(Path::new("/"));
     let stem = path.file_stem().map(|s| s.to_string_lossy().to_string()).unwrap_or_default();
@@ -346,17 +351,17 @@ pub fn move_files(app: &AppHandle, opts: &Value) -> Value {
         .map(|src| {
             let src_path = PathBuf::from(src);
             if !src_path.exists() {
-                return json!({ "path": src, "success": false, "error": "Source file does not exist" });
+                return json!({ "path": src, "success": false, "error": "El archivo de origen no existe" });
             }
             if !dest.exists() {
-                return json!({ "path": src, "success": false, "error": "Destination directory does not exist" });
+                return json!({ "path": src, "success": false, "error": "La carpeta de destino no existe" });
             }
             let target = dest.join(src_path.file_name().unwrap_or_default());
             if target.exists() {
                 return json!({
                     "path": src,
                     "success": false,
-                    "error": "A file with this name already exists in the destination"
+                    "error": "Ya existe un archivo con ese nombre en el destino"
                 });
             }
             match std::fs::rename(&src_path, &target) {
@@ -369,7 +374,7 @@ pub fn move_files(app: &AppHandle, opts: &Value) -> Value {
     let failed = results.iter().filter(|r| r["success"] != json!(true)).count();
     let mut out = json!({ "success": failed == 0, "results": results });
     if failed > 0 {
-        out["error"] = json!(format!("Failed to move {} file(s)", failed));
+        out["error"] = json!(format!("No se pudieron mover {} archivo(s)", failed));
     }
     out
 }
@@ -377,11 +382,11 @@ pub fn move_files(app: &AppHandle, opts: &Value) -> Value {
 pub fn rename(app: &AppHandle, opts: &Value) -> Value {
     let old = PathBuf::from(str_arg(opts, "oldPath"));
     if !old.exists() {
-        return fail("File or directory does not exist");
+        return fail("El archivo o la carpeta no existe");
     }
     let target = old.parent().unwrap_or(Path::new("/")).join(str_arg(opts, "newName"));
     if target.exists() {
-        return fail("A file or directory with this name already exists");
+        return fail("Ya existe un archivo o carpeta con ese nombre");
     }
     match std::fs::rename(&old, &target) {
         Ok(_) => {
@@ -401,12 +406,12 @@ pub fn pick_app_file() -> Value {
 pub fn read_file(path: &str) -> Result<Value, String> {
     std::fs::read(path)
         .map(|bytes| json!({ "type": "Buffer", "data": bytes }))
-        .map_err(|e| format!("Failed to read file: {}", e))
+        .map_err(|e| format!("No se pudo leer el archivo: {}", e))
 }
 
 pub fn show_in_file_manager(path: &str) -> Value {
     if path.is_empty() || !Path::new(path).exists() {
-        return fail("File or directory does not exist");
+        return fail("El archivo o la carpeta no existe");
     }
     bridge::reveal_in_finder(path);
     ok()

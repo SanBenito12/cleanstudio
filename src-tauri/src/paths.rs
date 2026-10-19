@@ -14,17 +14,29 @@ pub fn project_dir() -> PathBuf {
 
 /// Directorios donde buscar los motores, en orden de preferencia:
 /// recursos empaquetados → `resources/engines/` del repo → Maestro Studio instalado.
-fn engine_roots(app: &AppHandle) -> Vec<PathBuf> {
+/// Sin `AppHandle` (modo MCP) los recursos se buscan junto al ejecutable dentro del `.app`.
+fn engine_roots(app: Option<&AppHandle>) -> Vec<PathBuf> {
     let mut roots = Vec::new();
-    if let Ok(res) = app.path().resource_dir() {
-        roots.push(res.join("engines"));
+    match app {
+        Some(app) => {
+            if let Ok(res) = app.path().resource_dir() {
+                roots.push(res.join("engines"));
+            }
+        }
+        None => {
+            // .app/Contents/MacOS/clean-studio → .app/Contents/Resources/engines
+            if let Some(contents) = std::env::current_exe().ok().and_then(|e| e.parent()?.parent().map(Path::to_path_buf)) {
+                roots.push(contents.join("Resources").join("engines"));
+            }
+        }
     }
+    roots.push(project_dir().join("engines-bundle"));
     roots.push(project_dir().join("resources").join("engines"));
     roots.push(PathBuf::from(MAESTRO_UNPACKED));
     roots
 }
 
-fn find_engine(app: &AppHandle, rel: &Path) -> PathBuf {
+fn find_engine(app: Option<&AppHandle>, rel: &Path) -> PathBuf {
     let roots = engine_roots(app);
     roots
         .iter()
@@ -33,21 +45,21 @@ fn find_engine(app: &AppHandle, rel: &Path) -> PathBuf {
         .unwrap_or_else(|| roots.last().unwrap().join(rel))
 }
 
-pub fn studio_jar(app: &AppHandle) -> PathBuf {
+pub fn studio_jar(app: Option<&AppHandle>) -> PathBuf {
     find_engine(app, Path::new("dist-server/studio-server.jar"))
 }
 
-pub fn java_home(app: &AppHandle) -> PathBuf {
+pub fn java_home(app: Option<&AppHandle>) -> PathBuf {
     let arch = if cfg!(target_arch = "aarch64") { "mac-arm64" } else { "mac-x64" };
     find_engine(app, &Path::new("bundled-jvm").join(arch).join("Contents/Home"))
 }
 
-pub fn java_bin(app: &AppHandle) -> PathBuf {
+pub fn java_bin(app: Option<&AppHandle>) -> PathBuf {
     java_home(app).join("bin").join("java")
 }
 
 pub fn simulator_server(app: &AppHandle) -> Option<PathBuf> {
-    let p = find_engine(app, Path::new("bundled-simulator-server/mac-universal/simulator-server"));
+    let p = find_engine(Some(app), Path::new("bundled-simulator-server/mac-universal/simulator-server"));
     p.exists().then_some(p)
 }
 

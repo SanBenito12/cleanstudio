@@ -418,6 +418,85 @@
   globalThis.CleanStudioStore = CleanStudioStore;
 
   // ---------------------------------------------------------------------------
+  // Traductor de pasos y errores (tabla en src/shim/errores_es.json, inyectada al compilar)
+  // ---------------------------------------------------------------------------
+  function compile(pattern) {
+    var flags = "";
+    if (pattern.indexOf("(?i)") === 0) {
+      pattern = pattern.slice(4);
+      flags = "i";
+    }
+    try {
+      return new RegExp(pattern, flags);
+    } catch (_e) {
+      return null;
+    }
+  }
+  var tabla = globalThis.CLEAN_STUDIO_ERRORES || { pasos: [], errores: [] };
+  var pasos = tabla.pasos
+    .map(function (p) {
+      return { re: compile(p[0]), to: p[1] };
+    })
+    .filter(function (p) {
+      return p.re;
+    });
+  var errores = tabla.errores
+    .map(function (e) {
+      return { re: compile(e.patron), explicacion: e.explicacion, sugerencia: e.sugerencia };
+    })
+    .filter(function (e) {
+      return e.re;
+    });
+  globalThis.CleanStudioErrores = {
+    paso: function (label) {
+      if (typeof label !== "string") return label;
+      for (var i = 0; i < pasos.length; i++) {
+        if (pasos[i].re.test(label)) return label.replace(pasos[i].re, pasos[i].to);
+      }
+      return label;
+    },
+    explicar: function (msg) {
+      if (typeof msg !== "string" || !msg) return msg;
+      for (var i = 0; i < errores.length; i++) {
+        var m = errores[i].re.exec(msg);
+        if (!m) continue;
+        var fill = function (t) {
+          return t.replace(/\$(\d)/g, function (_s, n) {
+            return m[Number(n)] || "";
+          });
+        };
+        var texto = fill(errores[i].explicacion);
+        if (errores[i].sugerencia) texto += " " + fill(errores[i].sugerencia);
+        return texto + "\n\nDetalle: " + msg;
+      }
+      return msg;
+    },
+  };
+
+  // ---------------------------------------------------------------------------
+  // Evidencia de ejecuciones: se observan (sin alterarlos) los SSE de estado de flujos y
+  // workspaces y cada actualización se reenvía al backend, que graba video y arma el reporte.
+  // ---------------------------------------------------------------------------
+  var NativeEventSource = window.EventSource;
+  if (NativeEventSource) {
+    var ObservedEventSource = function (url, init) {
+      var es = new NativeEventSource(url, init);
+      var kind = /\/flowStatus\/sse/.test(url) ? "flow" : /\/workspaceStatus\/sse/.test(url) ? "workspace" : null;
+      if (kind) {
+        es.addEventListener("message", function (ev) {
+          ipcRenderer.send("cs-run-update", kind, ev.data);
+        });
+      }
+      return es;
+    };
+    ObservedEventSource.prototype = NativeEventSource.prototype;
+    ObservedEventSource.CONNECTING = NativeEventSource.CONNECTING;
+    ObservedEventSource.OPEN = NativeEventSource.OPEN;
+    ObservedEventSource.CLOSED = NativeEventSource.CLOSED;
+    window.EventSource = ObservedEventSource;
+  }
+
+  // ---------------------------------------------------------------------------
   // Registro del renderer en el proceso nativo (como `console-message` del original)
   // ---------------------------------------------------------------------------
   function rendererLog(level, parts) {

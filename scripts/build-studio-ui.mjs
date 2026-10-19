@@ -135,6 +135,90 @@ js = mustReplace(
   `children:"Clean Studio"}),k("span",{className:"text-sm font-mono text-foreground",children:"${appVersion}"})`,
   "Acerca de: versión",
 );
+// Sin nube ni marca de Maestro visible. Cada par es [original, reemplazo, etiqueta].
+const UI_PATCHES = [
+  // Panel de ejecución: sin selector Local/Cloud (la pestaña "cloud" no tiene forma de abrirse)
+  [
+    'X(FVe,{children:[k(Uk,{value:"local",children:"Local"}),k(Uk,{value:"cloud",children:"Cloud"})]})',
+    'k("span",{className:"text-sm font-medium text-foreground",children:"Ejecuciones"})',
+    "panel: sin Cloud",
+  ],
+  // Ajustes: sin secciones de actualizaciones ni de cuenta
+  [
+    '{id:"emulators",label:"Emulators",icon:mOe},{id:"updates",label:"Updates",icon:u1t},{id:"account",label:"Account",icon:E1t}]',
+    '{id:"emulators",label:"Emuladores",icon:mOe}]',
+    "ajustes: sin cuenta",
+  ],
+  [
+    'k(Ll,{value:"system",children:"System"}),k(Ll,{value:"dark",children:"Dark"}),k(Ll,{value:"light",children:"Light"})',
+    'k(Ll,{value:"system",children:"Sistema"}),k(Ll,{value:"dark",children:"Oscuro"}),k(Ll,{value:"light",children:"Claro"})',
+    "ajustes: tema",
+  ],
+  // Popups promocionales de la nube: siempre apagados
+  [
+    "const r=nZ(s),o=(r==null?void 0:r.orgStatus)===Vr.ACTIVE;n(!o)",
+    "n(!1)",
+    "popups promocionales",
+  ],
+  // Bienvenida: sin el video de Maestro y con textos propios
+  [
+    'k(SR,{className:"my-2"}),k(UY,{icon:w1t,title:"Hacer recorrido",description:"Mira un video corto sobre cómo usar Clean Studio",onClick:e})',
+    "null",
+    "bienvenida: sin video",
+  ],
+  [
+    `description:'Create a new folder for Maestro tests (often called "Maestro")'`,
+    'description:"Crea una carpeta nueva para guardar tus pruebas"',
+    "bienvenida: nuevo workspace",
+  ],
+  ['v=a||"No Workspace"', 'v=a||"Sin espacio de trabajo"', "cabecera: sin workspace"],
+  // "Acerca de": la fila del motor
+  [
+    'k("span",{className:"text-sm text-muted-foreground",children:"Maestro"}),qO?',
+    'k("span",{className:"text-sm text-muted-foreground",children:"Motor"}),qO?',
+    "acerca de: motor",
+  ],
+];
+for (const [from, to, label] of UI_PATCHES) js = mustReplace(js, from, to, label);
+// Pasos y errores del panel de ejecución pasan por el traductor del shim (CleanStudioErrores)
+js = mustReplace(
+  js,
+  "return{label:i.description??i.command??",
+  "return{label:globalThis.CleanStudioErrores.paso(i.description??i.command)??",
+  "traductor: pasos",
+);
+js = mustReplace(
+  js,
+  "commandId:i.id,errorMessage:i.error,",
+  "commandId:i.id,errorMessage:globalThis.CleanStudioErrores.explicar(i.error),",
+  "traductor: errores",
+);
+// Ajustes: sin el pie con "Cerrar Sesión" (no hay cuenta) ni su diálogo de confirmación
+const logoutFooter =
+  /k\(\$Qt,\{className:"p-\(--spacing-panel\) pt-0",children:X\(Fb,[\s\S]{0,900}?children:"Cerrar Sesión"\}\)\]\}\)\]\}\)\]\}\)\}\)/;
+if (!logoutFooter.test(js)) throw new Error('Parche "ajustes: sin cerrar sesión" no encontrado');
+js = js.replace(logoutFooter, "null");
+
+// Avisos de hitos: sin promoción de la nube ni enlaces externos, en español
+js = mustReplace(
+  js,
+  'description:"You\'ve successfully run your first flow. Now you can start building your test suite. Did you know you can run your entire workspace at once?",cta:{label:"Ver documentación",href:"https://maestro.mobile.dev"}}',
+  'description:"Tu primer flujo se ejecutó bien. Ya puedes armar tu batería de pruebas; también puedes ejecutar todo el espacio de trabajo a la vez."}',
+  "hito: primer flujo",
+);
+js = mustReplace(
+  js,
+  'title:"Let\'s get you back on track!",description:"Your flow ran into an error. Check out the test details to troubleshoot, or visit our documentation for tips. Feeling stuck? Our Slack community is full of developers who\'ve solved similar issues.",cta:{label:"Join our Slack",href:"https://slack.maestro.dev/"}}',
+  'title:"El flujo encontró un error",description:"Revisa el detalle del paso que falló en el panel de ejecuciones: ahí verás la explicación en español y cómo corregirlo."}',
+  "hito: primer error",
+);
+js = mustReplace(
+  js,
+  'description:"You\'ve successfully run your entire workspace. Ready to take it to the next level? Upload your workspace to Maestro Cloud to run tests on remote devices with faster execution and better reliability."}',
+  'description:"Todos los flujos del espacio de trabajo se ejecutaron bien."}',
+  "hito: workspace",
+);
+
 // PostHog: nunca capturar (además la CSP bloquea cualquier envío)
 js = mustReplace(
   js,
@@ -169,7 +253,13 @@ html = mustReplace(
   "shim",
 );
 fs.writeFileSync(htmlPath, html);
-fs.copyFileSync(path.join(ROOT, "src", "shim", "electron-shim.js"), path.join(OUT, "electron-shim.js"));
+// El shim lleva incrustada la tabla de traducciones (la misma que usa errors.rs en Rust)
+const errores = JSON.parse(fs.readFileSync(path.join(ROOT, "src", "shim", "errores_es.json"), "utf8"));
+const shim = fs.readFileSync(path.join(ROOT, "src", "shim", "electron-shim.js"), "utf8");
+fs.writeFileSync(
+  path.join(OUT, "electron-shim.js"),
+  `globalThis.CLEAN_STUDIO_ERRORES = ${JSON.stringify({ pasos: errores.pasos, errores: errores.errores })};\n${shim}`,
+);
 
 console.log(`UI lista en ${path.relative(ROOT, OUT)}/`);
 

@@ -32,6 +32,23 @@ pub fn status(app: &AppHandle) -> Value {
     }
 }
 
+/// Cero telemetría en la JVM. El jar trae Sentry con el DSN fijo en el código (no hay forma de
+/// apagarlo por configuración) y la analítica PostHog de Maestro CLI. Todo el HTTP(S) saliente va a
+/// un proxy local muerto (puerto 9) y solo localhost queda directo, que es lo único que necesita el
+/// motor (adb, drivers, simuladores). Se pasa además el opt-out oficial de la analítica.
+pub fn apply_no_telemetry(cmd: &mut Command) {
+    for arg in [
+        "-Dhttp.proxyHost=127.0.0.1",
+        "-Dhttp.proxyPort=9",
+        "-Dhttps.proxyHost=127.0.0.1",
+        "-Dhttps.proxyPort=9",
+        "-Dhttp.nonProxyHosts=localhost|127.*|[::1]|0.0.0.0",
+    ] {
+        cmd.arg(arg);
+    }
+    cmd.env("MAESTRO_CLI_NO_ANALYTICS", "1");
+}
+
 /// Termina un studio-server que una ejecución anterior de Clean Studio dejó en el puerto
 /// (p. ej. si la app murió por una señal). Solo si usa nuestro mismo jar: nunca toca Maestro Studio.
 fn kill_orphan_server(jar: &std::path::Path) {
@@ -59,10 +76,10 @@ pub fn start(app: &AppHandle) -> bool {
         return true;
     }
 
-    let jar = paths::studio_jar(app);
+    let jar = paths::studio_jar(Some(app));
     kill_orphan_server(&jar);
-    let java = paths::java_bin(app);
-    let java_home = paths::java_home(app);
+    let java = paths::java_bin(Some(app));
+    let java_home = paths::java_home(Some(app));
     let logs_dir = app
         .path()
         .app_data_dir()
@@ -83,20 +100,20 @@ pub fn start(app: &AppHandle) -> bool {
     });
 
     if !jar.exists() {
-        let msg = "studio-server.jar not found. Please build the studio server before launching the app.";
+        let msg = "No se encontró studio-server.jar. Vuelve a compilar Clean Studio para incluir el motor.";
         server_error(app, json!({ "type": "STARTUP_FAILURE", "message": msg, "diagnostics": diagnostics }));
         bridge::error_box("No se encontró Studio Server", msg);
         return false;
     }
     if !java.exists() {
-        let msg = "Java runtime not found or not executable. Please install Java 17 or later to run Maestro Studio.";
+        let msg = "No se encontró el runtime de Java incluido o no se puede ejecutar. Vuelve a instalar Clean Studio.";
         server_error(
             app,
             json!({
                 "type": "JAVA_MISSING",
                 "message": msg,
                 "diagnostics": diagnostics,
-                "suggestion": "Please install Java 17 or later to run Maestro Studio"
+                "suggestion": "Vuelve a instalar Clean Studio para restaurar la JVM incluida"
             }),
         );
         bridge::error_box("Error del runtime de Java", msg);
@@ -104,6 +121,7 @@ pub fn start(app: &AppHandle) -> bool {
     }
 
     let mut cmd = Command::new(&java);
+    apply_no_telemetry(&mut cmd);
     cmd.arg(format!("-Dlog.path={}", log_file.display()))
         .arg("-jar")
         .arg(&jar)
@@ -132,7 +150,7 @@ pub fn start(app: &AppHandle) -> bool {
         Err(e) => {
             server_error(
                 app,
-                json!({ "type": "STARTUP_FAILURE", "message": format!("Failed to start server: {}", e) }),
+                json!({ "type": "STARTUP_FAILURE", "message": format!("No se pudo iniciar el servidor: {}", e) }),
             );
             return false;
         }
@@ -196,11 +214,11 @@ fn spawn_exit_watcher(app: AppHandle, generation: u64) {
                 let mut payload = json!({
                     "type": "PORT_IN_USE",
                     "code": c,
-                    "message": format!("Server process exited with code {}", c),
+                    "message": format!("El servidor terminó con código {}", c),
                 });
                 if c == 1 {
                     payload["suggestion"] =
-                        json!(format!("Port {} may be in use. Try running: lsof -i :{}", PORT, PORT));
+                        json!(format!("Puede que el puerto {} esté ocupado. Revísalo con: lsof -i :{}", PORT, PORT));
                 }
                 server_error(&app, payload);
             }

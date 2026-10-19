@@ -22,3 +22,6 @@ patched-studio-files/
 logs/
 reports/
 .DS_Store
+
+# Evidencia de ejecuciones (videos, capturas, reportes)
+.clean-studio/

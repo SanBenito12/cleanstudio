@@ -1,8 +1,12 @@
 //! Clean Studio: el renderer original de Maestro Studio sobre Tauri v2.
 //! Este crate reemplaza el proceso main de Electron (ver `ipc.rs` para los canales).
 mod bridge;
+mod errors;
 mod ipc;
+mod mcp;
 mod paths;
+mod reports;
+mod runs;
 mod server;
 mod settings;
 mod simulator;
@@ -17,9 +21,11 @@ pub struct AppState {
     pub server: server::ServerState,
     pub simulator: simulator::SimulatorState,
     pub workspace: workspace::WorkspaceState,
+    pub runs: runs::RunsState,
 }
 
 fn shutdown(app: &tauri::AppHandle) {
+    runs::abort(app);
     simulator::stop(app, true);
     server::stop(app);
 }
@@ -45,6 +51,11 @@ fn handle_signals(app: tauri::AppHandle) {
             return;
         }
     });
+}
+
+/// `clean-studio mcp`: servidor MCP por stdio para Claude Desktop / Claude Code (sin ventana).
+pub fn run_mcp() {
+    mcp::run();
 }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]

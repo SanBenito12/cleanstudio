@@ -337,6 +337,7 @@ dependencies = [
  "chrono",
  "libc",
  "open",
+ "regex",
  "serde",
  "serde_json",
  "tauri",
