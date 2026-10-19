@@ -111,10 +111,10 @@ js = mustReplace(
   'case"editor-worker":case"editorWorkerService":return new Eln;',
   "worker de Monaco",
 );
-// Logo de la bienvenida (componente Ban): la "C" de Clean Studio en lugar de la marca de Maestro
+// Logo de la bienvenida (componente Ban): el símbolo "Flujo" de Clean Studio en lugar de la marca de Maestro
 const banLogo = /(function Ban\(\{className:i\}\)\{return k\("svg",\{className:i,viewBox:"0 25 92 92"[^}]*?k\("path",\{d:")[^"]+(")/;
 if (!banLogo.test(js)) throw new Error('Parche "logo de bienvenida" no encontrado');
-js = js.replace(banLogo, "$1M0 25H92V49.3A21.7 21.7 0 0 0 92 92.7V117H0Z$2");
+js = js.replace(banLogo, "$1M11.04 29.6H80.96A11.04 11.04 0 0 1 80.96 51.68H11.04A11.04 11.04 0 0 1 11.04 29.6ZM11.04 59.96H57.04A11.04 11.04 0 0 1 57.04 82.04H11.04A11.04 11.04 0 0 1 11.04 59.96ZM11.04 90.32H33.12A11.04 11.04 0 0 1 33.12 112.4H11.04A11.04 11.04 0 0 1 11.04 90.32ZM69.92 101.36a11.04 11.04 0 1 0 22.08 0a11.04 11.04 0 1 0 -22.08 0Z$2");
 // Ventana "Acerca de": nombre y versión de Clean Studio (la fila "Maestro" sigue mostrando el motor)
 const appVersion = JSON.parse(fs.readFileSync(path.join(ROOT, "package.json"), "utf8")).version;
 js = mustReplace(
@@ -146,7 +146,7 @@ fs.writeFileSync(bundlePath, js);
 
 // 2. Logo
 const logo = `<svg width="595" height="142" viewBox="0 0 595 142" fill="none" xmlns="http://www.w3.org/2000/svg">
-  <path d="M8 16H118V45A26 26 0 0 0 118 97V126H8Z" fill="currentColor"/>
+  <path d="M21.2 21.5H104.8A13.2 13.2 0 0 1 104.8 47.9H21.2A13.2 13.2 0 0 1 21.2 21.5ZM21.2 57.8H76.2A13.2 13.2 0 0 1 76.2 84.2H21.2A13.2 13.2 0 0 1 21.2 57.8ZM21.2 94.1H47.6A13.2 13.2 0 0 1 47.6 120.5H21.2A13.2 13.2 0 0 1 21.2 94.1ZM91.6 107.3a13.2 13.2 0 1 0 26.4 0a13.2 13.2 0 1 0 -26.4 0Z" fill="currentColor"/>
   <text x="142" y="92" fill="currentColor" font-family="-apple-system, BlinkMacSystemFont, 'SF Pro Display', Inter, sans-serif" font-size="68" font-weight="800" letter-spacing="-1.5">Clean Studio</text>
 </svg>`;
 fs.writeFileSync(path.join(OUT, "assets", "Maestro logo _ wordmark-CXPWZs15.svg"), logo);
