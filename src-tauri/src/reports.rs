@@ -169,6 +169,9 @@ button.step:focus-visible{outline:2px solid var(--fg);outline-offset:-2px}
   padding:2px 10px;cursor:pointer;white-space:nowrap}
 .review .seek:hover{background:var(--border)}.review .seek:focus-visible{outline:2px solid var(--fg);outline-offset:2px}
 .review .clean{padding:12px 14px;margin:0;color:var(--muted-fg);font-size:13px}
+.review .clean+ol{border-top:1px solid var(--border)}
+.review .por{font-size:11px;font-weight:600;color:var(--muted-fg);border:1px solid var(--border);border-radius:999px;padding:0 7px;margin-left:6px;vertical-align:1px}
+.review a.seek{text-decoration:none}
 .shots{display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:12px}
 .shots figure{margin:0}.shots img{width:100%;border-radius:var(--radius);border:1px solid var(--border);display:block}
 .shots figcaption{font-size:12px;color:var(--muted-fg);margin-top:4px;overflow-wrap:anywhere}
@@ -293,15 +296,23 @@ fn flujo_html(flujo: &Value, out: &mut String) {
 fn calidad_html(record: &Value, out: &mut String) {
     let Some(hallazgos) = record["calidad"].as_array() else { return };
     let multiples = record["flujos"].as_array().map(|f| f.len() > 1).unwrap_or(false);
-    let resumen = match hallazgos.len() {
+    let revisado = record["revisionClaude"].is_object();
+    let de_claude = hallazgos.iter().filter(|h| h["tipo"] == "claude").count();
+    let mut resumen = match hallazgos.len() {
         0 => String::new(),
         1 => "1 cosa".to_string(),
         n => format!("{} cosas", n),
     };
+    if revisado {
+        resumen = if resumen.is_empty() { "Revisado por Claude".into() } else { format!("{} · revisado por Claude", resumen) };
+    }
     out.push_str(&format!(
         "<section class=\"review\"><div class=\"review-head\"><h2>Qué revisar</h2><span>{}</span></div>",
         resumen
     ));
+    if revisado && de_claude == 0 {
+        out.push_str("<p class=\"clean\">Claude revisó las pantallas y no encontró nada más.</p>");
+    }
     if hallazgos.is_empty() {
         out.push_str("<p class=\"clean\">Nada que revisar: sin fallos, sin cierres ni bloqueos de la app, sin pasos más lentos de lo normal, sin resultados inestables y sin parpadeos en el video.</p></section>");
         return;
@@ -315,6 +326,10 @@ fn calidad_html(record: &Value, out: &mut String) {
             _ => "Menor",
         };
         let seek = match (h["segundo"].as_f64(), h["video"].as_str()) {
+            _ if h["captura"].is_string() => format!(
+                "<a class=\"seek\" href=\"{0}\" target=\"_blank\" rel=\"noopener\">Ver captura</a>",
+                esc(h["captura"].as_str().unwrap_or(""))
+            ),
             (Some(t), Some(v)) => format!(
                 "<button type=\"button\" class=\"seek\" data-t=\"{:.2}\" data-video=\"{}\">Ver en el video · {}:{:02}</button>",
                 t,
@@ -333,7 +348,11 @@ fn calidad_html(record: &Value, out: &mut String) {
             "<li><span class=\"sev {g}\" role=\"img\" aria-label=\"{e}\" title=\"{e}\"></span><span class=\"what\">{t}</span>{seek}<span class=\"why\">{d}</span>{donde}</li>",
             g = gravedad,
             e = etiqueta,
-            t = esc(h["titulo"].as_str().unwrap_or("")),
+            t = if h["tipo"] == "claude" {
+                format!("{}<span class=\"por\">Claude</span>", esc(h["titulo"].as_str().unwrap_or("")))
+            } else {
+                esc(h["titulo"].as_str().unwrap_or(""))
+            },
             seek = seek,
             d = esc(h["detalle"].as_str().unwrap_or("")),
             donde = donde,

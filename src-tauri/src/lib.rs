@@ -9,6 +9,7 @@ mod ipc;
 mod mcp;
 mod paths;
 mod reports;
+mod revision;
 mod runs;
 mod server;
 mod settings;

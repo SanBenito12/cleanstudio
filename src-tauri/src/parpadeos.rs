@@ -9,7 +9,7 @@
 //!
 //! Una animación de carga también cambia de ida y vuelta: por eso el informe lo llama "posible
 //! parpadeo" y enlaza el momento del video para que lo juzgue una persona.
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use std::process::Command;
 
 /// Extractor compilado por build.rs (vacío si no había Xcode al compilar).
@@ -49,8 +49,9 @@ pub fn interpretar(bytes: &[u8]) -> Option<Cuadros> {
     Some(Cuadros { ancho, alto, fps, cuadros })
 }
 
-/// Extrae los cuadros de un video. `None` si no hay extractor o el video no se puede leer.
-pub fn leer(video: &Path) -> Option<Cuadros> {
+/// Ruta del extractor (src/cuadros.swift) listo para ejecutar; `None` si se compiló sin Xcode.
+/// También lo usa revision.rs para sacar capturas PNG.
+pub fn extractor() -> Option<PathBuf> {
     if EXTRACTOR.is_empty() {
         return None;
     }
@@ -59,6 +60,12 @@ pub fn leer(video: &Path) -> Option<Cuadros> {
         std::fs::write(&exe, EXTRACTOR).ok()?;
         let _ = Command::new("chmod").arg("755").arg(&exe).status();
     }
+    Some(exe)
+}
+
+/// Extrae los cuadros de un video. `None` si no hay extractor o el video no se puede leer.
+pub fn leer(video: &Path) -> Option<Cuadros> {
+    let exe = extractor()?;
     let out = Command::new(&exe).arg(video).arg(FPS.to_string()).arg(ANCHO.to_string()).output().ok()?;
     if !out.status.success() {
         return None;
