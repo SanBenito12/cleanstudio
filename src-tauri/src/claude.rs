@@ -176,3 +176,48 @@ pub fn copy(text: &str) -> bool {
 pub fn open_claude_desktop() {
     let _ = Command::new("open").args(["-a", "Claude"]).spawn();
 }
+
+/// "Arreglar con Claude" en un paso fallido: con Claude Code abre una terminal en el workspace y
+/// arranca `claude` con el pedido ya escrito; si no está, copia el pedido y abre Claude Desktop.
+/// Devuelve `"code"` o `"desktop"` para que la interfaz diga qué pasó.
+pub fn fix_failed_step(workspace: Option<PathBuf>, archivo: &str, paso: &str, error: &str) -> Result<Value, String> {
+    let nombre = PathBuf::from(archivo)
+        .file_name()
+        .map(|n| n.to_string_lossy().to_string())
+        .unwrap_or_else(|| archivo.to_string());
+    let pedido = format!(
+        "El flujo {nombre} ({archivo}) falló en el paso \"{paso}\" con este error: {error}\n\n\
+         Usa las herramientas de Clean Studio: lee la última ejecución con leer_ejecucion, mira la pantalla \
+         del dispositivo con ver_pantalla y explícame en español por qué falló. Luego corrige {nombre}, \
+         valídalo con validar_flujo y vuelve a ejecutarlo con ejecutar_flujo para comprobar que pasa."
+    );
+    match claude_cli() {
+        Some(cli) => {
+            // Un .command se abre en Terminal sin pedir permisos de Automatización
+            let quote = |s: &str| format!("'{}'", s.replace('\'', "'\\''"));
+            let dir = workspace.unwrap_or_else(|| PathBuf::from(archivo).parent().map(PathBuf::from).unwrap_or_default());
+            let script = std::env::temp_dir().join("clean-studio-arreglar.command");
+            let body = format!(
+                "#!/bin/zsh -l\ncd {} && exec {} {}\n",
+                quote(&dir.to_string_lossy()),
+                quote(&cli),
+                quote(&pedido)
+            );
+            std::fs::write(&script, body).map_err(|e| format!("No se pudo preparar la terminal: {}", e))?;
+            let _ = Command::new("chmod").arg("+x").arg(&script).status();
+            Command::new("open")
+                .args(["-a", "Terminal"])
+                .arg(&script)
+                .spawn()
+                .map_err(|e| format!("No se pudo abrir la Terminal: {}", e))?;
+            Ok(json!("code"))
+        }
+        None => {
+            if !copy(&pedido) {
+                return Err("No se pudo copiar el pedido para Claude.".to_string());
+            }
+            open_claude_desktop();
+            Ok(json!("desktop"))
+        }
+    }
+}

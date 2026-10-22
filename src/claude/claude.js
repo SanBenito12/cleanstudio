@@ -8,20 +8,6 @@
     return document.getElementById(id);
   };
 
-  // Chispa de Claude: 8 rayos alternando largo
-  var g = $("spark");
-  for (var i = 0; i < 8; i++) {
-    var a = (i * Math.PI) / 4;
-    var r1 = i % 2 ? 3.2 : 2.6;
-    var r2 = i % 2 ? 8.2 : 10;
-    var line = document.createElementNS("http://www.w3.org/2000/svg", "line");
-    line.setAttribute("x1", 12 + r1 * Math.cos(a));
-    line.setAttribute("y1", 12 + r1 * Math.sin(a));
-    line.setAttribute("x2", 12 + r2 * Math.cos(a));
-    line.setAttribute("y2", 12 + r2 * Math.sin(a));
-    g.appendChild(line);
-  }
-
   var EJEMPLOS = [
     "Lista mis dispositivos y conecta el iPhone 17.",
     "Mira la pantalla del simulador y dime qué elementos puedo tocar.",
@@ -99,6 +85,8 @@
     // Claude Code
     var cBtn = $("code-btn");
     $("code-cmd").textContent = c.comando;
+    // El comando solo se muestra cuando hay que ejecutarlo a mano; si no, basta con "Copiar comando"
+    $("code-cmd").hidden = c.instalado;
     cBtn.disabled = false;
     if (c.conectado) {
       pill($("code-pill"), "ok", "Conectado");
@@ -129,21 +117,35 @@
       $("server-text").textContent = "La prueba falló (" + (srv.error || "sin respuesta") + "). Vuelve a instalar Clean Studio.";
     }
 
-    // Resumen
+    // Resumen: dónde funciona ya y qué falta, sin dar por buena una conexión pendiente
     var banner = $("banner");
-    var listo = srv.ok && (d.conectado || c.conectado);
-    if (listo) {
-      banner.className = "banner ok";
-      var donde = [d.conectado && "Claude Desktop", c.conectado && "Claude Code"].filter(Boolean).join(" y ");
-      banner.innerHTML = '<span class="dot"></span><div>Ya sirve<small></small></div>';
-      banner.querySelector("small").textContent = "Puedes usar Clean Studio desde " + donde + ".";
-    } else if (!srv.ok) {
+    var listos = [d.conectado && "Claude Desktop", c.conectado && "Claude Code"].filter(Boolean);
+    var pendientes = [];
+    if (d.instalado && !d.conectado) {
+      pendientes.push(d.otraRuta ? "Claude Desktop necesita reconectarse" : "Falta conectar Claude Desktop");
+    }
+    if (c.instalado && !c.conectado) pendientes.push("Falta conectar Claude Code");
+    var titulo, detalle;
+    if (!srv.ok) {
       banner.className = "banner bad";
-      banner.innerHTML = '<span class="dot"></span><div>El servidor para Claude no responde<small>Revisa el detalle abajo.</small></div>';
+      titulo = "El servidor para Claude no responde";
+      detalle = "Revisa el detalle abajo.";
+    } else if (listos.length && !pendientes.length) {
+      banner.className = "banner ok";
+      titulo = "Todo listo";
+      detalle = "Puedes usar Clean Studio desde " + listos.join(" y ") + ".";
+    } else if (listos.length) {
+      banner.className = "banner warn";
+      titulo = "Listo en " + listos.join(" y ");
+      detalle = pendientes.join(". ") + ": usa el botón de abajo.";
     } else {
       banner.className = "banner warn";
-      banner.innerHTML = '<span class="dot"></span><div>Falta conectar<small>Conecta Claude Desktop o Claude Code con los botones de abajo.</small></div>';
+      titulo = "Falta conectar";
+      detalle = "Conecta Claude Desktop o Claude Code con los botones de abajo.";
     }
+    banner.innerHTML = '<span class="dot"></span><div><span class="titulo"></span><small></small></div>';
+    banner.querySelector(".titulo").textContent = titulo;
+    banner.querySelector("small").textContent = detalle;
   }
 
   function refresh() {

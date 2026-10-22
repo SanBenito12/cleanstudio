@@ -30,7 +30,7 @@ fn esc(s: &str) -> String {
     s.replace('&', "&amp;").replace('<', "&lt;").replace('>', "&gt;").replace('"', "&quot;")
 }
 
-fn duracion(ms: Option<i64>) -> String {
+pub(crate) fn duracion(ms: Option<i64>) -> String {
     let Some(ms) = ms else { return String::new() };
     if ms < 1000 {
         return format!("{} ms", ms);
@@ -380,5 +380,16 @@ mod tests {
         assert_eq!(super::base64(b"Clean"), "Q2xlYW4=");
         assert_eq!(super::base64(b"Cl"), "Q2w=");
         assert_eq!(super::base64(b"Cle"), "Q2xl");
+    }
+
+    /// Regenera `reporte.html` de una ejecución guardada con el diseño actual.
+    /// `CS_EJECUCION=<carpeta de la ejecución> cargo test --lib -- --ignored regenera_reporte`
+    #[test]
+    #[ignore]
+    fn regenera_reporte() {
+        let dir = std::path::PathBuf::from(std::env::var("CS_EJECUCION").expect("falta CS_EJECUCION"));
+        let record: serde_json::Value =
+            serde_json::from_str(&std::fs::read_to_string(dir.join("ejecucion.json")).unwrap()).unwrap();
+        std::fs::write(dir.join("reporte.html"), super::render(&record)).unwrap();
     }
 }

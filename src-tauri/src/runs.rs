@@ -131,6 +131,47 @@ fn finish(app: &AppHandle, run: ActiveRun) {
     }
     eprintln!("[EJECUCIONES] Fin {} ({} videos, {} capturas)", run.key, videos.len(), capturas.len());
     send_flow_states(app);
+    notify_finished(app, &record);
+}
+
+/// Notificación de macOS al terminar, solo si Clean Studio no está al frente (si lo estás mirando,
+/// el panel de ejecuciones ya lo dice). Se apaga con `notificarAlTerminar: false` en config.json.
+fn notify_finished(app: &AppHandle, record: &Value) {
+    if !app.state::<AppState>().settings.bool_or("notificarAlTerminar", true) {
+        return;
+    }
+    let focused = app
+        .get_webview_window(crate::windows::MAIN)
+        .and_then(|w| w.is_focused().ok())
+        .unwrap_or(false);
+    if focused {
+        return;
+    }
+    let flujos = record["flujos"].as_array().cloned().unwrap_or_default();
+    let tiempo = reports::duracion(record["duracionMs"].as_i64());
+    let (subtitulo, cuerpo) = if record["tipo"] == "workspace" {
+        let pasaron = flujos.iter().filter(|f| f["estado"] == "COMPLETED").count();
+        (
+            "Todos los flujos".to_string(),
+            format!("{} de {} flujos pasaron en {}", pasaron, flujos.len(), tiempo),
+        )
+    } else {
+        let flujo = flujos.first().cloned().unwrap_or(Value::Null);
+        let nombre = flujo["nombre"].as_str().unwrap_or("Flujo").to_string();
+        let fallido = flujo["pasos"]
+            .as_array()
+            .and_then(|p| p.iter().find(|p| p["estado"] == "FAILED"))
+            .and_then(|p| p["paso"].as_str())
+            .map(String::from);
+        let cuerpo = match (record["estado"].as_str(), fallido) {
+            (Some("COMPLETED"), _) => format!("Pasó en {}", tiempo),
+            (_, Some(paso)) => format!("Falló en «{}»", paso),
+            (Some("FAILED"), None) => "Falló".to_string(),
+            _ => "Se detuvo antes de terminar".to_string(),
+        };
+        (nombre, cuerpo)
+    };
+    bridge::notify("Clean Studio", &subtitulo, &cuerpo);
 }
 
 pub(crate) fn maestro_tests_dir() -> PathBuf {
