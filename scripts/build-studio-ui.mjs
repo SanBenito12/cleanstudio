@@ -234,6 +234,30 @@ js = mustReplace(
   'at==="idle"&&k(CsSinDispositivo,{})',
   "panel vacío: uso",
 );
+// Árbol de archivos: punto con el último resultado de cada flujo (verde pasó, rojo falló, ámbar
+// incompleta). Al tocarlo se abre su reporte. Los datos vienen de runs.rs (cs-estados-flujos), que
+// también los reenvía al terminar una ejecución o al abrir otro workspace.
+const flowStatusDot = `const CsEstados={m:{},l:new Set,c:!1,
+fijar(m){this.m=m||{},this.l.forEach(f=>f())},
+sub(f){this.c||(this.c=!0,_r("cs-estados-flujos").then(m=>this.fijar(m)).catch(()=>{}),Ja("cs-estados-flujos",m=>this.fijar(m)));this.l.add(f);return()=>this.l.delete(f)}};
+function CsEstadoFlujo({path:p}){
+const m=D.useSyncExternalStore(f=>CsEstados.sub(f),()=>CsEstados.m),e=p?m[p]:null;if(!e)return null;
+const ok=e.estado==="COMPLETED",mal=e.estado==="FAILED",n=ok?"Pasó":mal?"Falló":"Incompleta",
+s=e.fin?Math.round((Date.parse(e.fin)-Date.now())/6e4):null,
+r=s===null||isNaN(s)?"":" "+(Math.abs(s)<60?new Intl.RelativeTimeFormat("es",{numeric:"auto"}).format(s,"minute"):Math.abs(s)<2880?new Intl.RelativeTimeFormat("es",{numeric:"auto"}).format(Math.round(s/60),"hour"):new Intl.RelativeTimeFormat("es",{numeric:"auto"}).format(Math.round(s/1440),"day")),
+t=n+r+(e.reporte?". Abrir reporte":"");
+return k("button",{type:"button",title:t,"aria-label":t,disabled:!e.reporte,
+onClick:x=>{x.stopPropagation(),_r("cs-abrir-reporte",e.reporte).catch(y=>Bn.error(String(y&&y.message||y)))},
+onMouseDown:x=>x.stopPropagation(),
+className:"ml-auto mr-1 shrink-0 inline-flex items-center justify-center size-4 rounded-full cursor-pointer hover:bg-accent outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50",
+children:k("span",{className:"size-2 rounded-full "+(ok?"bg-emerald-500":mal?"bg-red-500":""),style:ok||mal?void 0:{background:"#f59e0b"}})})}`.replace(/\n/g, "");
+js = mustReplace(js, "function OWe(", `${flowStatusDot}function OWe(`, "estado de flujos: componente");
+js = mustReplace(
+  js,
+  'children:X("span",{"data-drag-preview-content":!0,className:"flex items-center gap-(--spacing-gap-sm) text-sm",children:[k(Ge,{icon:lw,size:16,className:"text-muted-foreground"}),k("span",{className:"truncate",children:i.name})]})})',
+  'children:[X("span",{"data-drag-preview-content":!0,className:"flex min-w-0 items-center gap-(--spacing-gap-sm) text-sm",children:[k(Ge,{icon:lw,size:16,className:"text-muted-foreground"}),k("span",{className:"truncate",children:i.name})]}),k(CsEstadoFlujo,{path:i.path})]})',
+  "estado de flujos: árbol",
+);
 // Pasos y errores del panel de ejecución pasan por el traductor del shim (CleanStudioErrores)
 js = mustReplace(
   js,

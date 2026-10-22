@@ -5,7 +5,7 @@
 //! en `<workspace>/.clean-studio/ejecuciones/`; el estado final la cierra. El motor ya graba la
 //! pantalla y guarda las capturas en `~/.maestro/tests/`: aquí solo se copian a la carpeta de la
 //! ejecución (grabar en paralelo choca con la grabación del motor en el simulador).
-use crate::{errors, paths, reports, simulator, workspace, AppState};
+use crate::{bridge, errors, paths, reports, simulator, workspace, AppState};
 use serde_json::{json, Value};
 use std::path::{Path, PathBuf};
 use std::process::Command;
@@ -130,6 +130,7 @@ fn finish(app: &AppHandle, run: ActiveRun) {
         }
     }
     eprintln!("[EJECUCIONES] Fin {} ({} videos, {} capturas)", run.key, videos.len(), capturas.len());
+    send_flow_states(app);
 }
 
 pub(crate) fn maestro_tests_dir() -> PathBuf {
@@ -350,6 +351,48 @@ fn adb(app: &AppHandle) -> Command {
 /// Carpeta de ejecuciones del workspace abierto.
 pub fn runs_dir(app: &AppHandle) -> Option<PathBuf> {
     workspace::current_root(app).map(|w| w.join(".clean-studio").join("ejecuciones"))
+}
+
+/// Último resultado de cada flujo del workspace: `{ "<ruta del yaml>": { estado, fin, reporte } }`.
+/// Las carpetas empiezan con la fecha, así que al recorrerlas en orden gana la más reciente.
+pub fn flow_states(app: &AppHandle) -> Value {
+    let mut out = serde_json::Map::new();
+    let Some(dir) = runs_dir(app) else { return Value::Object(out) };
+    let Ok(rd) = std::fs::read_dir(&dir) else { return Value::Object(out) };
+    let mut runs: Vec<PathBuf> = rd.flatten().map(|e| e.path()).filter(|p| p.is_dir()).collect();
+    runs.sort();
+    for run in runs {
+        let Ok(text) = std::fs::read_to_string(run.join("ejecucion.json")) else { continue };
+        let Ok(record) = serde_json::from_str::<Value>(&text) else { continue };
+        let report = run.join("reporte.html");
+        for flujo in record["flujos"].as_array().into_iter().flatten() {
+            let Some(archivo) = flujo["archivo"].as_str() else { continue };
+            out.insert(
+                archivo.to_string(),
+                json!({
+                    "estado": flujo["estado"],
+                    "fin": record["fin"],
+                    "reporte": if report.exists() { json!(report.to_string_lossy()) } else { Value::Null },
+                }),
+            );
+        }
+    }
+    Value::Object(out)
+}
+
+/// Avisa al árbol de archivos que cambiaron los resultados (al terminar una ejecución o al abrir otro workspace).
+pub fn send_flow_states(app: &AppHandle) {
+    bridge::send(app, "cs-estados-flujos", vec![flow_states(app)]);
+}
+
+/// Abre un reporte solo si está dentro de las ejecuciones del workspace abierto.
+pub fn open_report(app: &AppHandle, path: &str) -> Result<(), String> {
+    let report = PathBuf::from(path);
+    let inside = runs_dir(app).is_some_and(|dir| report.starts_with(dir));
+    if !inside || report.file_name().and_then(|n| n.to_str()) != Some("reporte.html") || !report.exists() {
+        return Err("No se encontró el reporte de esa ejecución.".to_string());
+    }
+    open::that(&report).map_err(|e| format!("No se pudo abrir el reporte: {}", e))
 }
 
 #[cfg(test)]
