@@ -423,7 +423,16 @@ fn ejecutar_flujo(args: &Value) -> Value {
         "id": device["instanceId"].as_str().unwrap_or(""),
         "nombre": device["description"].as_str().unwrap_or(""),
     });
-    let record = runs::build_record("flow", &last, started, Some(device_json), &videos, &capturas);
+    let mut record = runs::build_record("flow", &last, started, Some(device_json), &videos, &capturas);
+    let adb = paths::detect_android_sdk().map(|sdk| Command::new(PathBuf::from(sdk).join("platform-tools").join("adb")));
+    record["calidad"] = json!(crate::calidad::informe(
+        &record,
+        &dir,
+        device["platform"].as_str().unwrap_or(""),
+        device["instanceId"].as_str().unwrap_or(""),
+        adb,
+        started,
+    ));
     let _ = std::fs::write(dir.join("ejecucion.json"), serde_json::to_string_pretty(&record).unwrap_or_default());
     let reporte = dir.join("reporte.html");
     let _ = std::fs::write(&reporte, reports::render(&record));
@@ -438,6 +447,18 @@ fn ejecutar_flujo(args: &Value) -> Value {
         describe_steps(&pasos),
         reporte.display()
     );
+    // Lo que hay que revisar, para que Claude lo explique o lo corrija
+    if let Some(h) = record["calidad"].as_array().filter(|h| !h.is_empty()) {
+        t.push_str("\n\nQué revisar:");
+        for x in h {
+            t.push_str(&format!(
+                "\n- [{}] {}: {}",
+                x["gravedad"].as_str().unwrap_or(""),
+                x["titulo"].as_str().unwrap_or(""),
+                x["detalle"].as_str().unwrap_or("")
+            ));
+        }
+    }
     for v in &videos {
         t.push_str(&format!("\nVideo: {}", dir.join(v).display()));
     }

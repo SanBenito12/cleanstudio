@@ -153,6 +153,22 @@ button.step:focus-visible{outline:2px solid var(--fg);outline-offset:-2px}
 .err strong{color:var(--fail);font-weight:600}
 .err code{font:12px/1.45 ui-monospace,"SF Mono",Menlo,monospace;color:var(--muted-fg);white-space:pre-wrap;overflow-wrap:anywhere}
 .section h3{margin:0 0 10px;font-size:14px;font-weight:600}
+.review{border:1px solid var(--border);border-radius:var(--radius);background:var(--card);overflow:hidden}
+.review-head{display:flex;align-items:baseline;gap:10px;padding:12px 14px;border-bottom:1px solid var(--border)}
+.review-head h2{margin:0;font-size:14px;font-weight:600;flex:1}
+.review-head span{color:var(--muted-fg);font-size:13px}
+.review ol{list-style:none;margin:0;padding:0}
+.review li{display:grid;grid-template-columns:10px minmax(0,1fr) auto;gap:4px 12px;align-items:baseline;padding:10px 14px}
+.review li+li{border-top:1px solid var(--border)}
+.review .sev{width:8px;height:8px;border-radius:50%;align-self:center}
+.sev.alta{background:var(--fail)}.sev.media{background:var(--warn)}.sev.baja{background:var(--muted-fg)}
+.review .what{font-weight:600}
+.review .why{grid-column:2/-1;color:var(--muted-fg);font-size:13px;overflow-wrap:anywhere}
+.review .where{grid-column:2/-1;color:var(--muted-fg);font-size:12px}
+.review .seek{font:inherit;font-size:13px;font-weight:500;color:var(--fg);background:var(--muted);border:0;border-radius:999px;
+  padding:2px 10px;cursor:pointer;white-space:nowrap}
+.review .seek:hover{background:var(--border)}.review .seek:focus-visible{outline:2px solid var(--fg);outline-offset:2px}
+.review .clean{padding:12px 14px;margin:0;color:var(--muted-fg);font-size:13px}
 .shots{display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:12px}
 .shots figure{margin:0}.shots img{width:100%;border-radius:var(--radius);border:1px solid var(--border);display:block}
 .shots figcaption{font-size:12px;color:var(--muted-fg);margin-top:4px;overflow-wrap:anywhere}
@@ -181,7 +197,8 @@ const JS: &str = r#"
   // Mostrar el primer cuadro en vez de un recuadro vacío antes de reproducir
   player.addEventListener("loadedmetadata",function(){if(player.paused&&player.currentTime===0)player.currentTime=0.05;},{once:true});
   function load(src){if(src&&player.getAttribute("src")!==src){player.setAttribute("src",src);player.load();}}
-  steps.forEach(function(b){
+  // Pasos y hallazgos del informe de calidad saltan al mismo punto del video
+  [].slice.call(document.querySelectorAll("[data-t][data-video]")).forEach(function(b){
     b.addEventListener("click",function(){
       load(b.dataset.video);
       var t=parseFloat(b.dataset.t);
@@ -271,6 +288,60 @@ fn flujo_html(flujo: &Value, out: &mut String) {
     }
 }
 
+/// "Qué revisar": hallazgos de calidad.rs (fallos, cierres, lentitud, inestabilidad).
+/// Los registros anteriores a esta función no traen `calidad` y no muestran la sección.
+fn calidad_html(record: &Value, out: &mut String) {
+    let Some(hallazgos) = record["calidad"].as_array() else { return };
+    let multiples = record["flujos"].as_array().map(|f| f.len() > 1).unwrap_or(false);
+    let resumen = match hallazgos.len() {
+        0 => String::new(),
+        1 => "1 cosa".to_string(),
+        n => format!("{} cosas", n),
+    };
+    out.push_str(&format!(
+        "<section class=\"review\"><div class=\"review-head\"><h2>Qué revisar</h2><span>{}</span></div>",
+        resumen
+    ));
+    if hallazgos.is_empty() {
+        out.push_str("<p class=\"clean\">Nada que revisar: sin fallos, sin cierres ni bloqueos de la app, sin pasos más lentos de lo normal y sin resultados inestables.</p></section>");
+        return;
+    }
+    out.push_str("<ol>");
+    for h in hallazgos {
+        let gravedad = h["gravedad"].as_str().unwrap_or("baja");
+        let etiqueta = match gravedad {
+            "alta" => "Grave",
+            "media" => "Importante",
+            _ => "Menor",
+        };
+        let seek = match (h["segundo"].as_f64(), h["video"].as_str()) {
+            (Some(t), Some(v)) => format!(
+                "<button type=\"button\" class=\"seek\" data-t=\"{:.2}\" data-video=\"{}\">Ver en el video · {}:{:02}</button>",
+                t,
+                esc(v),
+                (t as i64) / 60,
+                (t as i64) % 60
+            ),
+            _ => "<span></span>".to_string(),
+        };
+        let donde = if multiples {
+            format!("<span class=\"where\">{}</span>", esc(h["flujo"].as_str().unwrap_or("")))
+        } else {
+            String::new()
+        };
+        out.push_str(&format!(
+            "<li><span class=\"sev {g}\" role=\"img\" aria-label=\"{e}\" title=\"{e}\"></span><span class=\"what\">{t}</span>{seek}<span class=\"why\">{d}</span>{donde}</li>",
+            g = gravedad,
+            e = etiqueta,
+            t = esc(h["titulo"].as_str().unwrap_or("")),
+            seek = seek,
+            d = esc(h["detalle"].as_str().unwrap_or("")),
+            donde = donde,
+        ));
+    }
+    out.push_str("</ol></section>");
+}
+
 pub fn render(record: &Value) -> String {
     let (estado, clase) = estado_general(record["estado"].as_str().unwrap_or(""));
     let (_, estado_svg) = icono(record["estado"].as_str().unwrap_or(""));
@@ -341,6 +412,7 @@ pub fn render(record: &Value) -> String {
         esc(dispositivo.and_then(|d| d.get("plataforma")).and_then(Value::as_str).unwrap_or("—"))
     ));
     html.push_str("</div></aside><main class=\"runs\">");
+    calidad_html(record, &mut html);
 
     for flujo in &flujos {
         flujo_html(flujo, &mut html);

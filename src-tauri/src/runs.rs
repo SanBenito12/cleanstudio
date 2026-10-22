@@ -116,7 +116,9 @@ fn finish(app: &AppHandle, run: ActiveRun) {
             "nombre": device_name(app, p, id),
         })
     });
-    let record = build_record(&run.kind, &run.last, run.started, device, &videos, &capturas);
+    let mut record = build_record(&run.kind, &run.last, run.started, device, &videos, &capturas);
+    let (plataforma, id) = run.device.clone().unwrap_or_default();
+    record["calidad"] = json!(crate::calidad::informe(&record, &run.dir, &plataforma, &id, Some(adb(app)), run.started));
     let _ = std::fs::write(
         run.dir.join("ejecucion.json"),
         serde_json::to_string_pretty(&record).unwrap_or_default(),
@@ -170,6 +172,12 @@ fn notify_finished(app: &AppHandle, record: &Value) {
             _ => "Se detuvo antes de terminar".to_string(),
         };
         (nombre, cuerpo)
+    };
+    let avisos = record["calidad"].as_array().map(|h| h.len()).unwrap_or(0);
+    let cuerpo = match avisos {
+        0 => cuerpo,
+        1 => format!("{} · 1 cosa por revisar", cuerpo),
+        n => format!("{} · {} cosas por revisar", cuerpo, n),
     };
     bridge::notify("Clean Studio", &subtitulo, &cuerpo);
 }
