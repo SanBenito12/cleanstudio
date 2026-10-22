@@ -204,6 +204,36 @@ js = mustReplace(
   `children:[${claudeButton},k(NBe,{}),e&&k(xt,{variant:"ghost",size:"icon-sm",onClick:e,className:"text-amber-500 hover:text-amber-400"`,
   "cabecera: botón Claude",
 );
+// Panel del dispositivo vacío: en vez de "Ningún dispositivo conectado", la lista de simuladores y
+// emuladores para encender o conectar con un clic (misma acción que el selector, triggerActivateDevice).
+// Usa los helpers del selector OWe: vLe (nombre/SO), hYt (relojes fuera), gYt (icono de plataforma).
+// El CSS de Tailwind viene compilado: solo sirven clases que ya existen en studio-ui/assets/*.css.
+const emptyDevicePanel = `function CsSinDispositivo(){const o=d=>d.device.instanceId?0:{IOS:1,ANDROID:1,IPADOS:2}[fYt(d)]??3;
+const{devices:s,isDevicesLoading:c,triggerActivateDevice:l}=Xf(),[t,v]=D.useState(!1),[p,q]=D.useState(null),
+L=D.useMemo(()=>(s??[]).map(d=>({device:d,parsed:vLe(d)})).filter(d=>!hYt(d)).sort((a,b)=>o(a)-o(b)||a.parsed.name.localeCompare(b.parsed.name)),[s]),
+V=t?L:L.slice(0,5),
+F=(h,b)=>X("div",{className:"text-center flex flex-col items-center gap-1.5",children:[
+k("svg",{viewBox:"0 0 24 24",width:28,height:28,fill:"none",stroke:"currentColor",strokeWidth:1.5,strokeLinecap:"round",className:"text-muted-foreground mb-1","aria-hidden":!0,children:[k("rect",{x:6,y:2.5,width:12,height:19,rx:2.5}),k("path",{d:"M10.5 18.5h3"})]}),
+k("p",{className:"text-sm font-medium text-foreground",children:h}),
+k("p",{className:"text-xs text-muted-foreground max-w-64 text-balance",children:b})]});
+if(!L.length)return k("div",{className:"px-6",children:c||!s?F("Buscando dispositivos…","Un momento, revisando los simuladores y emuladores de este Mac."):F("No hay simuladores instalados","Crea uno en Xcode (Settings › Components) o en el Device Manager de Android Studio. Aparecerá aquí solo.")});
+return X("div",{className:"w-full max-h-full overflow-y-auto px-4 py-8 flex flex-col gap-4",onClick:e=>e.stopPropagation(),onKeyDown:e=>e.stopPropagation(),children:[
+F("Elige un dispositivo","Enciéndelo aquí para ver su pantalla y ejecutar tus flujos."),
+X("div",{className:"flex flex-col gap-1",children:[V.map(({device:d,parsed:n})=>{const i=d.instanceId??d.modelId,r=!!d.instanceId,w=p===i;
+return X("button",{type:"button",disabled:p!==null,onClick:async()=>{q(i);try{await l(d)}finally{q(null)}},
+className:"w-full flex items-center gap-3 rounded-xl px-3 py-2 text-left hover:bg-accent disabled:opacity-50 outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50 transition-colors",children:[
+k("span",{className:"text-muted-foreground",children:gYt(d.platform)}),
+X("span",{className:"min-w-0 flex-1",children:[k("span",{className:"block truncate text-sm text-foreground",children:n.name}),
+X("span",{className:"flex items-center gap-1.5 text-xs text-muted-foreground",children:[r&&k("span",{className:"inline-block size-2 rounded-full bg-emerald-500","aria-hidden":"true"}),k("span",{className:"truncate",children:(n.os??bLe(d.platform))+(r?" · encendido":"")})]})]}),
+k("span",{className:"text-xs font-medium text-muted-foreground whitespace-nowrap",children:w?(r?"Conectando…":"Encendiendo…"):r?"Conectar":"Encender"})]},i)}),
+L.length>5&&k("button",{type:"button",onClick:()=>v(!t),className:"mx-auto mt-1 rounded-md px-2 py-1 text-xs text-muted-foreground hover:text-foreground underline-offset-4 hover:underline outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50",children:t?"Ver menos":\`Ver los \${L.length} dispositivos\`})]})]})}`.replace(/\n/g, "");
+js = mustReplace(js, "function OWe(", `${emptyDevicePanel}function OWe(`, "panel vacío: componente");
+js = mustReplace(
+  js,
+  'at==="idle"&&k("span",{className:"text-muted-foreground",children:"Ningún dispositivo conectado"})',
+  'at==="idle"&&k(CsSinDispositivo,{})',
+  "panel vacío: uso",
+);
 // Pasos y errores del panel de ejecución pasan por el traductor del shim (CleanStudioErrores)
 js = mustReplace(
   js,
