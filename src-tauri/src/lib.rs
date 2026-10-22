@@ -2,6 +2,7 @@
 //! Este crate reemplaza el proceso main de Electron (ver `ipc.rs` para los canales).
 mod bridge;
 mod calidad;
+mod parpadeos;
 mod claude;
 mod errors;
 mod ipc;

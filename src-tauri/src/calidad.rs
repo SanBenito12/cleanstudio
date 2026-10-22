@@ -6,6 +6,7 @@
 //!   de JavaScript de React Native); en iOS, los `.ips` nuevos de DiagnosticReports.
 //! - Lentitud: pasos que tardan mucho más que en ejecuciones anteriores con el mismo paso.
 //! - Inestabilidad: flujos que, con el mismo YAML, unas veces pasan y otras fallan.
+//! - Parpadeos: destellos y zonas que cambian de ida y vuelta en el video (parpadeos.rs).
 //!
 //! `analizar` es puro (registro + historial + eventos del sistema → hallazgos) para poder
 //! probarlo; la lectura de logcat y de los reportes de iOS va aparte.
@@ -161,7 +162,61 @@ pub fn informe(record: &Value, dir: &Path, plataforma: &str, id: &str, adb: Opti
         .filter_map(|d| std::fs::read_to_string(d.join("ejecucion.json")).ok())
         .filter_map(|t| serde_json::from_str(&t).ok())
         .collect();
-    analizar(record, &historial, &eventos)
+    let mut hallazgos = analizar(record, &historial, &eventos);
+    // Parpadeos: revisa el video de cada flujo
+    for flujo in record["flujos"].as_array().into_iter().flatten() {
+        let (Some(video), Some(rec)) = (flujo["video"].as_str(), flujo["grabacionInicioMs"].as_i64()) else { continue };
+        let Some(cuadros) = crate::parpadeos::leer(&dir.join(video)) else { continue };
+        let pasos: Vec<f64> = flujo["pasos"]
+            .as_array()
+            .into_iter()
+            .flatten()
+            .filter_map(|p| p["inicioMs"].as_i64())
+            .map(|t| (t - rec) as f64 / 1000.0)
+            .collect();
+        hallazgos.extend(hallazgos_parpadeo(flujo, &crate::parpadeos::detectar(&cuadros, &pasos)));
+    }
+    ordenar(&mut hallazgos);
+    hallazgos
+}
+
+/// Convierte lo que encontró el detector de parpadeos en avisos del informe.
+pub fn hallazgos_parpadeo(flujo: &Value, parpadeos: &[crate::parpadeos::Parpadeo]) -> Vec<Value> {
+    let Some(rec) = flujo["grabacionInicioMs"].as_i64() else { return Vec::new() };
+    parpadeos
+        .iter()
+        .map(|p| {
+            let ms = rec + (p.desde * 1000.0) as i64;
+            let durante = paso_en(flujo, ms).map(|x| format!(" durante «{}»", x)).unwrap_or_default();
+            let (titulo, detalle) = if p.tipo == "destello" {
+                (
+                    format!("La pantalla destelló{}", durante),
+                    format!(
+                        "Por un instante {} y volvió. Suele pasar cuando una pantalla se redibuja desde cero o su fondo carga tarde.",
+                        p.zona
+                    ),
+                )
+            } else {
+                (
+                    format!("Posible parpadeo {}{}", p.zona, durante),
+                    format!(
+                        "Esa zona cambió de ida y vuelta durante {} sin que la prueba tocara nada. Puede ser un parpadeo o una animación, como un indicador de carga: míralo en el video.",
+                        segundos(((p.hasta - p.desde) * 1000.0) as i64)
+                    ),
+                )
+            };
+            hallazgo("media", "parpadeo", titulo, detalle, flujo, Some(ms))
+        })
+        .collect()
+}
+
+fn ordenar(hallazgos: &mut [Value]) {
+    let peso = |h: &Value| match h["gravedad"].as_str() {
+        Some("alta") => 0,
+        Some("media") => 1,
+        _ => 2,
+    };
+    hallazgos.sort_by_key(peso);
 }
 
 // ---------------------------------------------------------------------------
@@ -329,12 +384,7 @@ pub fn analizar(record: &Value, historial: &[Value], eventos: &[EventoSistema]) 
         }
     }
 
-    let peso = |h: &Value| match h["gravedad"].as_str() {
-        Some("alta") => 0,
-        Some("media") => 1,
-        _ => 2,
-    };
-    out.sort_by_key(peso);
+    ordenar(&mut out);
     out
 }
 
@@ -405,6 +455,16 @@ mod tests {
         let tipos: Vec<&str> = h.iter().filter_map(|x| x["tipo"].as_str()).collect();
         assert_eq!(tipos, vec!["fallo", "inestable"]);
         assert!(h[1]["detalle"].as_str().unwrap().contains("1 de 2"));
+    }
+
+    #[test]
+    fn convierte_parpadeos_en_avisos_con_su_momento() {
+        let actual = registro("COMPLETED", vec![paso("Abrir la app", "COMPLETED", 1000, 500), paso("Ver mapa", "COMPLETED", 2000, 4000)]);
+        let p = crate::parpadeos::Parpadeo { tipo: "zona", desde: 2.5, hasta: 4.5, zona: "arriba de la pantalla".into(), veces: 3 };
+        let h = hallazgos_parpadeo(&actual["flujos"][0], &[p]);
+        assert_eq!(h[0]["titulo"], "Posible parpadeo arriba de la pantalla durante «Ver mapa»");
+        assert_eq!(h[0]["segundo"], 2.5);
+        assert!(h[0]["detalle"].as_str().unwrap().contains("2,0 s"));
     }
 
     #[test]

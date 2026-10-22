@@ -303,7 +303,7 @@ fn calidad_html(record: &Value, out: &mut String) {
         resumen
     ));
     if hallazgos.is_empty() {
-        out.push_str("<p class=\"clean\">Nada que revisar: sin fallos, sin cierres ni bloqueos de la app, sin pasos más lentos de lo normal y sin resultados inestables.</p></section>");
+        out.push_str("<p class=\"clean\">Nada que revisar: sin fallos, sin cierres ni bloqueos de la app, sin pasos más lentos de lo normal, sin resultados inestables y sin parpadeos en el video.</p></section>");
         return;
     }
     out.push_str("<ol>");
