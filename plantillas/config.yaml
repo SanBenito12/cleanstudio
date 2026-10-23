@@ -1,0 +1,6 @@
+# "Ejecutar todas" corre los flujos de esta carpeta (no los de comun/, que son pasos compartidos)
+# y deja fuera los que necesitan datos reales: cuentas, códigos o tarjetas. Esos se ejecutan uno por uno.
+flows:
+  - "*"
+excludeTags:
+  - requiere-datos

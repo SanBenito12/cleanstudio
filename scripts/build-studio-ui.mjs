@@ -253,16 +253,22 @@ children:k("span",{className:"size-2 rounded-full "+(ok?"bg-emerald-500":mal?"bg
 js = mustReplace(js, "function OWe(", `${flowStatusDot}function OWe(`, "estado de flujos: componente");
 // Barra de ejecución (fln): junto a "Ejecuciones", por qué no se puede ejecutar o el último resultado
 // del flujo abierto. p = pestaña activa, E = hay dispositivo, Ne/de = flujo/workspace en curso.
+// "Revisar con Claude" (revision.rs): Claude mira las capturas de esa ejecución sin abrir ventana;
+// al terminar llega cs-revision-claude y el aviso abre el reporte actualizado.
+// Sin dispositivo se avisa igual, pero la revisión de la última ejecución no lo necesita.
 const runSummary = `function CsResumenEjecucion({path:p,device:d,yaml:y,running:r}){
-const m=D.useSyncExternalStore(f=>CsEstados.sub(f),()=>CsEstados.m);if(r)return null;
-const c="truncate text-xs text-muted-foreground";
-if(!d)return k("span",{className:c,title:"Conecta un dispositivo para ejecutar pruebas",children:"Sin dispositivo"});
-if(!y)return k("span",{className:c,title:"Abre un flujo .yaml para ejecutarlo",children:"Abre un flujo"});
-const e=p?m[p]:null;if(!e)return null;
-const ok=e.estado==="COMPLETED",mal=e.estado==="FAILED",t="Última vez: "+(ok?"pasó":mal?"falló":"incompleta");
-return X("button",{type:"button",disabled:!e.reporte,title:e.reporte?"Abrir reporte":void 0,onClick:()=>_r("cs-abrir-reporte",e.reporte).catch(x=>Bn.error(String(x&&x.message||x))),
+const m=D.useSyncExternalStore(f=>CsEstados.sub(f),()=>CsEstados.m),[o,s]=D.useState(!1);
+D.useEffect(()=>Ja("cs-revision-claude",x=>{s(!1);const v={action:{label:"Ver reporte",onClick:()=>_r("cs-abrir-reporte",x.reporte).catch(()=>{})}};x.ok?Bn.success(x.mensaje,v):Bn.error(x.mensaje)}),[]);
+if(r)return null;
+const c="truncate text-xs text-muted-foreground",e=p?m[p]:null;
+const ok=e&&e.estado==="COMPLETED",mal=e&&e.estado==="FAILED",t="Última vez: "+(ok?"pasó":mal?"falló":"incompleta");
+return X("div",{className:"flex min-w-0 items-center gap-1",children:[!d?k("span",{className:c,title:"Conecta un dispositivo para ejecutar pruebas",children:"Sin dispositivo"}):!y?k("span",{className:c,title:"Abre un flujo .yaml para ejecutarlo",children:"Abre un flujo"}):e&&X("button",{type:"button",disabled:!e.reporte,title:e.reporte?"Abrir reporte":void 0,onClick:()=>_r("cs-abrir-reporte",e.reporte).catch(x=>Bn.error(String(x&&x.message||x))),
 className:"flex min-w-0 items-center gap-1.5 rounded-sm px-1 text-xs text-muted-foreground hover:text-foreground hover:underline underline-offset-4 cursor-pointer outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50",
-children:[k("span",{className:"size-2 shrink-0 rounded-full "+(ok?"bg-emerald-500":mal?"bg-red-500":""),style:ok||mal?void 0:{background:"#f59e0b"}}),k("span",{className:"truncate",children:t})]})}`.replace(/\n/g, "");
+children:[k("span",{className:"size-2 shrink-0 rounded-full "+(ok?"bg-emerald-500":mal?"bg-red-500":""),style:ok||mal?void 0:{background:"#f59e0b"}}),k("span",{className:"truncate",children:t})]}),
+e&&e.reporte&&X("button",{type:"button",disabled:o,title:"Revisar con Claude: mira las pantallas de esta ejecución y anota lo que se vea mal",
+onClick:()=>{s(!0),_r("cs-revisar-con-claude",e.reporte).then(x=>{x==="desktop"?(s(!1),Bn.success("Copié el pedido. Pégalo en un chat nuevo de Claude.")):Bn.success("Claude está revisando las pantallas. Te aviso cuando termine.")}).catch(x=>{s(!1),Bn.error(String(x&&x.message||x))})},
+className:"flex shrink-0 items-center gap-1 rounded-sm px-1.5 py-0.5 text-xs font-medium text-muted-foreground hover:text-foreground hover:bg-accent disabled:opacity-50 cursor-pointer outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50",
+"aria-label":"Revisar con Claude",children:[k("img",{src:"./claude.png",width:12,height:12,alt:"","aria-hidden":!0,className:"rounded-sm"}),o?"Revisando…":"Revisar"]})]})}`.replace(/\n/g, "");
 js = mustReplace(js, "function OWe(", `${runSummary}function OWe(`, "barra de ejecución: componente");
 // Paso fallido (u() dentro de GIe; m = ruta del flujo, w = paso): "Arreglar con Claude" abre Claude
 // Code en el workspace con el error ya escrito, o copia el pedido y abre Claude Desktop (claude.rs).
@@ -281,7 +287,7 @@ js = mustReplace(
 js = mustReplace(
   js,
   'children:[k("span",{className:"text-sm font-medium text-foreground",children:"Ejecuciones"}),X("div",{className:"flex items-center gap-(--spacing-gap)"',
-  'children:[X("div",{className:"flex min-w-0 items-center gap-(--spacing-gap)",children:[k("span",{className:"text-sm font-medium text-foreground shrink-0",children:"Ejecuciones"}),k(CsResumenEjecucion,{path:p,device:E,yaml:!!p&&$k(p),running:Ne||de})]}),X("div",{className:"flex shrink-0 items-center gap-(--spacing-gap)"',
+  'children:[X("div",{className:"flex min-w-0 overflow-hidden items-center gap-(--spacing-gap)",children:[k("span",{className:"text-sm font-medium text-foreground shrink-0",children:"Ejecuciones"}),k(CsResumenEjecucion,{path:p,device:E,yaml:!!p&&$k(p),running:Ne||de})]}),X("div",{className:"flex shrink-0 items-center gap-(--spacing-gap)"',
   "barra de ejecución: uso",
 );
 js = mustReplace(

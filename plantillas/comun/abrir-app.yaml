@@ -1,0 +1,12 @@
+appId: com.ejemplo.app
+name: "Común: abrir la app desde cero"
+---
+# Estado limpio y permisos concedidos (notificaciones, ubicación…) para que no salgan diálogos
+- launchApp:
+    clearState: true
+    permissions:
+      all: allow
+# Espera a que pase la pantalla de bienvenida; cambia el texto por el título de tu primera pantalla
+- extendedWaitUntil:
+    visible: "Iniciar sesión"
+    timeout: 15000

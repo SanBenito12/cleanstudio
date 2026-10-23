@@ -32,7 +32,7 @@ pub fn code_command() -> String {
 }
 
 /// `claude` (CLI de Claude Code): rutas habituales y, si no, el PATH del shell del usuario.
-fn claude_cli() -> Option<String> {
+pub(crate) fn claude_cli() -> Option<String> {
     let home = paths::home_dir();
     for p in [
         home.join(".local/bin/claude"),

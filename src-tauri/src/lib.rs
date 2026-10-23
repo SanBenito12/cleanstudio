@@ -1,12 +1,15 @@
 //! Clean Studio: el renderer original de Maestro Studio sobre Tauri v2.
 //! Este crate reemplaza el proceso main de Electron (ver `ipc.rs` para los canales).
 mod bridge;
+mod calidad;
+mod parpadeos;
 mod claude;
 mod errors;
 mod ipc;
 mod mcp;
 mod paths;
 mod reports;
+mod revision;
 mod runs;
 mod server;
 mod settings;

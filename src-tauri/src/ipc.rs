@@ -178,6 +178,7 @@ fn handle_invoke(app: &AppHandle, channel: &str, args: &[Value]) -> Result<Value
             Value::Null
         }
         "cs-claude-copy" => json!(crate::claude::copy(&arg_str(args, 0))),
+        "cs-revisar-con-claude" => crate::revision::iniciar(app, &arg_str(args, 0))?,
         "cs-arreglar-con-claude" => {
             let opts = arg(args, 0);
             let s = |k: &str| opts.get(k).and_then(Value::as_str).unwrap_or("").to_string();
