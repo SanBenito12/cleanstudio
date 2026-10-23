@@ -14,6 +14,7 @@ Escribe el flujo, mira el teléfono en vivo y recibe un reporte con video y una 
 ![Tauri v2](https://img.shields.io/badge/Tauri-v2-24C8DB?logo=tauri&logoColor=white)
 ![Claude MCP](https://img.shields.io/badge/Claude-MCP-D97757?logo=claude&logoColor=white)
 ![Sin telemetría](https://img.shields.io/badge/telemetr%C3%ADa-cero-2ea44f)
+![Licencia MIT](https://img.shields.io/badge/licencia-MIT-blue)
 
 ![Clean Studio con el espejo de un iPhone en Ajustes y el árbol de flujos con su último resultado](docs/capturas/espejo-y-arbol.png)
 
@@ -181,6 +182,12 @@ Para abrir directamente una carpeta como workspace:
 - `docs/capturas/`: las imágenes de este README.
 - `legacy/`: la interfaz React anterior, como referencia.
 - `build_real_clean_studio.py`: variante que reempaqueta la app Electron original traducida.
+
+---
+
+## Licencia
+
+El código de este repositorio es [MIT](LICENSE). Maestro Studio, su interfaz y sus motores no se incluyen: se toman de tu instalación al compilar y siguen bajo los términos de sus autores.
 
 ---
 
