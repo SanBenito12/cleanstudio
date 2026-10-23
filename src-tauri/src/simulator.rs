@@ -214,3 +214,43 @@ pub fn device_command(app: &AppHandle, command: &str) {
         let _ = stdin.flush();
     }
 }
+
+/// Bundle del driver XCUITest de Maestro que se instala en cada simulador de iOS.
+const DRIVER_IOS: &str = "dev.mobile.maestro-driver-iosUITests.xctrunner";
+
+/// ¿Es el id de un simulador de iOS? (UDID: 8-4-4-4-12 en hexadecimal)
+fn es_udid(id: &str) -> bool {
+    let partes: Vec<&str> = id.split('-').collect();
+    partes.iter().map(|p| p.len()).eq([8, 4, 4, 4, 12]) && id.chars().all(|c| c.is_ascii_hexdigit() || c == '-')
+}
+
+/// Antes de conectar un simulador de iOS, cierra el driver de Maestro en los demás simuladores
+/// encendidos. Todos usan el mismo puerto del Mac (22087): si otro sigue vivo, el motor habla con
+/// ese y "ve" la pantalla de otro iPhone aunque el conectado sea este.
+pub fn liberar_driver_ios(conectar: &str) {
+    if !es_udid(conectar) {
+        return;
+    }
+    let Ok(out) = Command::new("xcrun").args(["simctl", "list", "devices", "booted", "-j"]).output() else { return };
+    let Ok(lista) = serde_json::from_slice::<Value>(&out.stdout) else { return };
+    for d in lista["devices"].as_object().into_iter().flat_map(|m| m.values()).flat_map(|l| l.as_array().cloned().unwrap_or_default()) {
+        let Some(udid) = d["udid"].as_str() else { continue };
+        if udid != conectar {
+            let cerrado = Command::new("xcrun").args(["simctl", "terminate", udid, DRIVER_IOS]).output();
+            if cerrado.map(|o| o.status.success()).unwrap_or(false) {
+                eprintln!("[SIMULADOR] Driver de Maestro cerrado en {} para conectar {}", udid, conectar);
+            }
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    #[test]
+    fn reconoce_udids_de_ios() {
+        assert!(super::es_udid("C7D925A8-EECC-4F10-A60E-10FF16858502"));
+        assert!(!super::es_udid("emulator-5554"));
+        assert!(!super::es_udid("chromium"));
+        assert!(!super::es_udid("C7D925A8-EECC-4F10-A60E-10FF1685850Z"));
+    }
+}

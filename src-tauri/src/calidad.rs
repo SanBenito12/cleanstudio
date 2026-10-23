@@ -92,10 +92,11 @@ pub fn eventos_logcat(texto: &str, apps: &[String], desde_ms: i64) -> Vec<Evento
 /// Lee logcat del emulador o teléfono Android usado en la ejecución.
 pub fn leer_logcat(adb: &mut Command, serial: &str, apps: &[String], desde: SystemTime) -> Vec<EventoSistema> {
     let desde_ms = desde.duration_since(SystemTime::UNIX_EPOCH).map(|d| d.as_millis() as i64).unwrap_or(0);
-    let Ok(out) = adb.args(["-s", serial, "logcat", "-d", "-v", "epoch", "-b", "main,system,crash"]).output() else {
+    adb.args(["-s", serial, "logcat", "-d", "-v", "epoch", "-b", "main,system,crash"]);
+    let Some(out) = crate::bridge::output_with_timeout(adb, std::time::Duration::from_secs(10)) else {
         return Vec::new();
     };
-    eventos_logcat(&String::from_utf8_lossy(&out.stdout), apps, desde_ms)
+    eventos_logcat(&String::from_utf8_lossy(&out), apps, desde_ms)
 }
 
 /// Cierres de apps en el simulador de iOS: reportes `.ips` nuevos cuyo `bundleID` es una app probada.

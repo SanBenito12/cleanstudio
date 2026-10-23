@@ -178,6 +178,11 @@ fn handle_invoke(app: &AppHandle, channel: &str, args: &[Value]) -> Result<Value
             Value::Null
         }
         "cs-claude-copy" => json!(crate::claude::copy(&arg_str(args, 0))),
+        // Antes de conectar un dispositivo (parche de xye en build-studio-ui.mjs)
+        "cs-antes-de-conectar" => {
+            crate::simulator::liberar_driver_ios(&arg_str(args, 0));
+            Value::Null
+        }
         "cs-revisar-con-claude" => crate::revision::iniciar(app, &arg_str(args, 0))?,
         "cs-arreglar-con-claude" => {
             let opts = arg(args, 0);

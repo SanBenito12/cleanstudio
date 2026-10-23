@@ -296,6 +296,14 @@ js = mustReplace(
   'children:[X("span",{"data-drag-preview-content":!0,className:"flex min-w-0 items-center gap-(--spacing-gap-sm) text-sm",children:[k(Ge,{icon:lw,size:16,className:"text-muted-foreground"}),k("span",{className:"truncate",children:i.name})]}),k(CsEstadoFlujo,{path:i.path})]})',
   "estado de flujos: árbol",
 );
+// Antes de conectar, el backend cierra el driver de Maestro en los otros simuladores de iOS
+// (simulator.rs → liberar_driver_ios): comparten el puerto 22087 y el motor hablaría con el equivocado.
+js = mustReplace(
+  js,
+  "async function xye(i){const e=await fetch(",
+  'async function xye(i){await _r("cs-antes-de-conectar",i).catch(()=>{});const e=await fetch(',
+  "conectar: liberar el driver de iOS",
+);
 // Pasos y errores del panel de ejecución pasan por el traductor del shim (CleanStudioErrores)
 js = mustReplace(
   js,

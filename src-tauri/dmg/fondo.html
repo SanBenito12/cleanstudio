@@ -1,0 +1,40 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<!-- Fondo de la ventana del instalador (.dmg), 660×420. Es claro a propósito: con imagen de fondo,
+     Finder dibuja los nombres de los iconos en negro aunque el Mac esté en modo oscuro. Fuente de fondo.tiff (1x + 2x):
+       chrome --headless --hide-scrollbars --window-size=660,420 --screenshot=fondo.png fondo.html
+       (y con --force-device-scale-factor=2 para fondo@2x.png), luego
+       tiffutil -cathidpicheck fondo.png fondo@2x.png -out fondo.tiff
+     Finder pone los iconos en (170,200) y (490,200): ver bundle.macOS.dmg en tauri.conf.json -->
+<style>
+@font-face { font-family: "DM Sans"; src: url(../src/dm-sans.woff2) format("woff2"); font-weight: 100 1000; }
+:root { --fondo: #f4f4f2; --texto: #18181b; --tenue: #52525b; --mas-tenue: #a1a1aa; --barra: #a1a1aa; --verde: #10b981; }
+html, body { margin: 0; width: 660px; height: 420px; overflow: hidden; }
+body {
+  background: radial-gradient(440px 280px at 50% 50%, #ffffff 0%, var(--fondo) 75%);
+  color: var(--texto); font-family: "DM Sans", -apple-system, sans-serif; position: relative;
+}
+.titulo { position: absolute; top: 38px; left: 0; right: 0; text-align: center; }
+.titulo h1 { margin: 0; font-size: 21px; font-weight: 600; letter-spacing: -0.01em; }
+.titulo p { margin: 6px 0 0; font-size: 13px; color: var(--tenue); }
+/* El logo "Flujo" acostado: tres pasos que se acortan hasta el punto, de la app a Aplicaciones */
+.flujo { position: absolute; top: 193px; left: 262px; display: flex; align-items: center; gap: 8px; }
+.flujo span { display: block; height: 12px; border-radius: 6px; background: var(--barra); }
+.flujo span:nth-child(1) { width: 50px; opacity: .55; }
+.flujo span:nth-child(2) { width: 32px; opacity: .75; }
+.flujo span:nth-child(3) { width: 16px; }
+.flujo i { width: 14px; height: 14px; border-radius: 50%; background: var(--verde); box-shadow: 0 0 12px rgba(16,185,129,.35); }
+.pie { position: absolute; bottom: 22px; left: 0; right: 0; text-align: center; font-size: 11px; color: var(--mas-tenue); }
+</style>
+</head>
+<body>
+  <div class="titulo">
+    <h1>Instala Clean Studio</h1>
+    <p>Arrastra el icono a Applications (Aplicaciones)</p>
+  </div>
+  <div class="flujo" aria-hidden="true"><span></span><span></span><span></span><i></i></div>
+  <div class="pie">Pruebas E2E en español, sin cuentas y sin telemetría</div>
+</body>
+</html>

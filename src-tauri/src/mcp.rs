@@ -203,6 +203,7 @@ fn listar_dispositivos() -> Value {
 
 fn conectar_dispositivo(args: &Value) -> Value {
     let Some(id) = args["id"].as_str() else { return error("Falta el id del dispositivo.") };
+    crate::simulator::liberar_driver_ios(id);
     if let Err(e) = http("POST", &format!("/api/devices/{}/connect", encode(id)), Some(&json!({})), 60) {
         return error(format!("No se pudo conectar {}: {}", id, e));
     }
