@@ -1,0 +1,17 @@
+appId: com.ejemplo.app
+name: "Recuperar contraseña: pide el correo y permite volver"
+tags:
+  - validaciones
+---
+- runFlow: comun/abrir-app.yaml
+- tapOn: "¿Olvidaste tu contraseña?"
+- assertVisible: "Recuperar contraseña"
+
+# Sin correo no se envía nada
+- tapOn: "Enviar"
+- assertVisible: "El correo electrónico es obligatorio"
+- takeScreenshot: "recuperar-vacio"
+
+# Se puede volver al inicio de sesión
+- back
+- assertVisible: "Iniciar sesión"

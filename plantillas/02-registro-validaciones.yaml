@@ -1,0 +1,30 @@
+appId: com.ejemplo.app
+name: "Registro: campos obligatorios, correo y contraseña inválidos"
+tags:
+  - registro
+  - validaciones
+---
+- runFlow: comun/abrir-app.yaml
+- tapOn: "Crear cuenta"
+- assertVisible: "Registro"
+
+# 1. Enviar vacío: un mensaje por cada campo obligatorio
+- tapOn: "CREAR CUENTA"
+- assertVisible: "El nombre es obligatorio"
+- assertVisible: "El correo electrónico es obligatorio"
+- assertVisible: "La contraseña es obligatoria"
+- takeScreenshot: "registro-vacio"
+
+# 2. Correo sin formato válido (los textos se buscan como expresión regular: ".*" = cualquier resto)
+- tapOn: "correo@ejemplo.com"
+- inputText: "correo-invalido"
+- tapOn: "Registro"                      # quita el foco sin hideKeyboard (ver comun/iniciar-sesion.yaml)
+- assertVisible: "Formato de correo inválido.*"
+
+# 3. Contraseña débil: la app explica la regla
+- tapOn:
+    id: "campo-contrasena"
+- inputText: "abc"
+- tapOn: "Registro"
+- assertVisible: "La contraseña debe tener al menos.*"
+- takeScreenshot: "registro-contrasena-debil"

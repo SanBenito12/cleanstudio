@@ -1,0 +1,34 @@
+appId: com.ejemplo.app
+name: "Común: abrir la app con la sesión iniciada"
+env:
+  # Usa una cuenta de pruebas, nunca una real. Mejor aún: define estas variables en el entorno
+  # (selector "Env" de la barra de ejecución) y deja estos valores vacíos en el repositorio.
+  CORREO: ""
+  CONTRASENA: ""
+---
+- assertTrue: ${CORREO.length > 0 && CONTRASENA.length > 0}
+# Sin clearState: si ya hay sesión, se conserva
+- launchApp:
+    permissions:
+      all: allow
+- waitForAnimationToEnd
+# Solo si la app pide iniciar sesión
+- runFlow:
+    when:
+      visible: "Iniciar sesión"
+    commands:
+      - tapOn: "correo@ejemplo.com"     # el texto de ejemplo (placeholder) del campo
+      - eraseText: 60
+      - inputText: ${CORREO}
+      # Un campo de contraseña vacío a veces no aparece como elemento (solo muestra puntos).
+      # Si tu campo tiene testID, usa: tapOn: { id: "campo-contrasena" }. Si no, tócalo por posición.
+      - tapOn:
+          id: "campo-contrasena"
+      - eraseText: 60
+      - inputText: ${CONTRASENA}
+      # En Android, hideKeyboard presiona "Atrás" y puede cerrar la app: se toca el título
+      - tapOn: "Iniciar sesión"
+      - tapOn: "ENTRAR"
+- extendedWaitUntil:
+    visible: "Inicio"                    # algo que solo se ve con la sesión iniciada
+    timeout: 20000

@@ -1,0 +1,31 @@
+appId: com.ejemplo.app
+name: "Registro: crear una cuenta nueva"
+tags:
+  - registro
+  - requiere-datos                       # crea datos de verdad: queda fuera de "Ejecutar todas"
+env:
+  NOMBRE: "Prueba"
+  CORREO: ""                             # usa un correo de pruebas o temporal
+  CONTRASENA: ""
+---
+# Sin datos no se intenta el registro
+- assertTrue: ${CORREO.length > 0 && CONTRASENA.length > 0}
+- runFlow: comun/abrir-app.yaml
+- tapOn: "Crear cuenta"
+
+- tapOn: "Tu nombre"
+- inputText: ${NOMBRE}
+- tapOn: "correo@ejemplo.com"
+- inputText: ${CORREO}
+- tapOn:
+    id: "campo-contrasena"
+- inputText: ${CONTRASENA}
+# Si un texto empieza con "+", "(" o "?", escápalo: el texto se busca como expresión regular
+- tapOn: "\\+52 55 1234 5678"
+- inputText: "5500000000"
+- tapOn: "Registro"
+- takeScreenshot: "registro-lleno"
+
+- tapOn: "CREAR CUENTA"
+- waitForAnimationToEnd
+- takeScreenshot: "registro-enviado"

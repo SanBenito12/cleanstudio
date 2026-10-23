@@ -1,0 +1,33 @@
+appId: com.ejemplo.app
+name: "Pago con tarjeta de prueba (sandbox)"
+tags:
+  - sesion
+  - requiere-datos                       # hace un pago, aunque sea de prueba: se ejecuta a mano
+env:
+  # Solo tarjetas de prueba publicadas por tu proveedor de pagos (Openpay, Stripe, Conekta…)
+  # y solo contra su ambiente de pruebas. Una aprobada y otra rechazada cubren los dos caminos.
+  TITULAR: "Prueba Clean Studio"
+  TARJETA: ""
+  VENCE: "12/30"
+  CVC: "123"
+---
+- assertTrue: ${TARJETA.length > 0}
+- runFlow: comun/iniciar-sesion.yaml
+- tapOn: "Perfil"
+- tapOn: "Métodos de pago"
+- tapOn: "Agregar tarjeta"
+
+- tapOn: "Como aparece en la tarjeta"
+- inputText: ${TITULAR}
+- tapOn: "0000 0000 0000 0000"
+- inputText: ${TARJETA}
+- tapOn: "MM/AA"
+- inputText: ${VENCE}
+- tapOn: "123"
+- inputText: ${CVC}
+- tapOn: "Agregar tarjeta"
+- takeScreenshot: "tarjeta-guardada"
+
+- tapOn: "Pagar"
+- waitForAnimationToEnd
+- takeScreenshot: "pago-enviado"
