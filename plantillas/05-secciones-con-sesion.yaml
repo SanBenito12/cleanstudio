@@ -1,0 +1,22 @@
+appId: com.ejemplo.app
+name: "Secciones principales con la sesión iniciada"
+tags:
+  - sesion
+---
+- runFlow: comun/iniciar-sesion.yaml
+
+# Cada pestaña abre su pantalla
+- tapOn: "Inicio"
+- assertVisible: "Bienvenido.*"
+- tapOn: "Mapa"
+- extendedWaitUntil:
+    visible: "Buscar.*"
+    timeout: 15000
+- tapOn: "Perfil"
+- assertVisible: "Editar perfil"
+- takeScreenshot: "perfil"
+
+# Una pantalla con ubicación: fija una ubicación conocida para que el resultado sea siempre igual
+- setLocation:
+    latitude: 19.4326
+    longitude: -99.1332

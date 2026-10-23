@@ -1,0 +1,21 @@
+appId: com.ejemplo.app
+name: "Inicio de sesión: pide los datos si están vacíos"
+tags:
+  - humo
+  - validaciones
+---
+- runFlow: comun/abrir-app.yaml
+
+# La pantalla carga completa
+- assertVisible: "Iniciar sesión"
+- assertVisible: "Correo electrónico"
+- assertVisible: "Contraseña"
+- assertVisible: "ENTRAR"
+
+# Entrar sin datos muestra un aviso y no avanza
+- tapOn: "ENTRAR"
+- assertVisible: "Completa tus datos"
+- tapOn: "OK"
+- assertNotVisible: "Completa tus datos"
+- assertVisible: "Iniciar sesión"
+- takeScreenshot: "inicio-sesion-vacio"
