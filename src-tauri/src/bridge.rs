@@ -23,6 +23,17 @@ fn osascript(script: &str) -> Option<String> {
     (!s.is_empty()).then_some(s)
 }
 
+/// Notificación de macOS (Centro de notificaciones). No bloquea ni pide permisos de Automatización.
+pub fn notify(title: &str, subtitle: &str, body: &str) {
+    let script = format!(
+        "display notification \"{}\" with title \"{}\" subtitle \"{}\"",
+        escape_applescript(body),
+        escape_applescript(title),
+        escape_applescript(subtitle)
+    );
+    let _ = Command::new("osascript").arg("-e").arg(script).spawn();
+}
+
 /// El diálogo lo muestra `osascript`; `activate` lo trae al frente sin pedir permisos de Automatización.
 fn front(script: &str) -> String {
     format!("activate\n{}", script)

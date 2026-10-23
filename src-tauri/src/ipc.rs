@@ -60,6 +60,7 @@ fn handle_send(app: &AppHandle, window: &WebviewWindow, channel: &str, args: &[V
                 .map(|a| a.iter().filter_map(|v| v.as_str().map(String::from)).collect())
                 .unwrap_or_default();
             workspace::setup_watcher(app, &arg_str(args, 0), expanded);
+            crate::runs::send_flow_states(app);
         }
         "get-directory-contents" => workspace::directory_contents(app, &arg_str(args, 0)),
         "load-file-content" => workspace::load_file_content(app, &arg_str(args, 0)),
@@ -177,8 +178,20 @@ fn handle_invoke(app: &AppHandle, channel: &str, args: &[Value]) -> Result<Value
             Value::Null
         }
         "cs-claude-copy" => json!(crate::claude::copy(&arg_str(args, 0))),
+        "cs-arreglar-con-claude" => {
+            let opts = arg(args, 0);
+            let s = |k: &str| opts.get(k).and_then(Value::as_str).unwrap_or("").to_string();
+            crate::claude::fix_failed_step(workspace::current_root(app), &s("archivo"), &s("paso"), &s("error"))?
+        }
         "cs-claude-open-desktop" => {
             crate::claude::open_claude_desktop();
+            Value::Null
+        }
+
+        // Árbol de archivos: último resultado de cada flujo y su reporte
+        "cs-estados-flujos" => crate::runs::flow_states(app),
+        "cs-abrir-reporte" => {
+            crate::runs::open_report(app, &arg_str(args, 0))?;
             Value::Null
         }
 

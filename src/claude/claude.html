@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Claude en Clean Studio</title>
 <style>
-/* Ventana de conexión con Claude: misma paleta neutra de la app, naranja solo en la chispa */
+/* Ventana de conexión con Claude: misma paleta neutra de la app; el color lo pone el icono de Claude */
 :root {
   --bg: #f6f6f4; --card: #ffffff; --fg: #161616; --muted: #64645f; --line: #e2e2dd;
   --btn: #161616; --btn-fg: #ffffff; --ghost: #ececE8;
@@ -22,12 +22,13 @@
   }
 }
 * { box-sizing: border-box }
+[hidden] { display: none !important }
 html, body { margin: 0; background: var(--bg); color: var(--fg);
   font: 14px/1.5 -apple-system, BlinkMacSystemFont, "SF Pro Text", "Helvetica Neue", sans-serif; }
 .drag { position: fixed; inset: 0 0 auto 0; height: 38px; }
 main { padding: 46px 24px 24px; display: grid; gap: 16px; }
 header { display: flex; gap: 14px; align-items: center; }
-header svg { width: 40px; height: 40px; flex: none; }
+header img { width: 44px; height: 44px; flex: none; }
 h1 { font-size: 20px; margin: 0; letter-spacing: -0.01em; }
 .sub { color: var(--muted); margin: 2px 0 0; }
 .banner { display: flex; align-items: center; gap: 10px; padding: 12px 14px; border-radius: 12px; font-weight: 600; }
@@ -50,7 +51,7 @@ button:disabled { opacity: .5; cursor: default; }
 button:focus-visible { outline: 2px solid var(--spark); outline-offset: 2px; }
 code.cmd { display: block; grid-column: 1 / -1; background: var(--code); border-radius: 8px; padding: 8px 10px;
   font: 12px/1.4 ui-monospace, "SF Mono", Menlo, monospace; overflow-wrap: anywhere; }
-h3 { font-size: 13px; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); margin: 6px 0 0; }
+h3 { font-size: 15px; font-weight: 600; margin: 8px 0 0; }
 ol { margin: 0; padding: 10px 0 10px 20px; display: grid; gap: 6px; }
 .prompts { display: grid; gap: 8px; padding: 12px 0; }
 .prompt { display: grid; grid-template-columns: 1fr auto; gap: 10px; align-items: center;
@@ -67,9 +68,7 @@ footer { display: flex; justify-content: space-between; align-items: center; col
 <div class="drag" data-tauri-drag-region></div>
 <main>
   <header data-tauri-drag-region>
-    <svg viewBox="0 0 24 24" aria-hidden="true">
-      <g stroke="#D97757" stroke-width="2.4" stroke-linecap="round" id="spark"></g>
-    </svg>
+    <img src="./claude.png" alt="" aria-hidden="true">
     <div>
       <h1>Claude en Clean Studio</h1>
       <p class="sub">Claude ve tus dispositivos, escribe pruebas, las ejecuta y lee los reportes. Usa tu suscripción de Claude, sin API key.</p>
@@ -88,7 +87,7 @@ footer { display: flex; justify-content: space-between; align-items: center; col
       <h2>Claude Code <span id="code-pill" class="pill muted">…</span></h2>
       <button id="code-btn" disabled>Conectar</button>
       <p id="code-text">Comprobando…</p>
-      <code class="cmd" id="code-cmd"></code>
+      <code class="cmd" id="code-cmd" hidden></code>
     </div>
     <div class="row">
       <h2>Servidor de Clean Studio para Claude <span id="server-pill" class="pill muted">…</span></h2>

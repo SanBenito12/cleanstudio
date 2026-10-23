@@ -172,6 +172,12 @@ const UI_PATCHES = [
     "bienvenida: nuevo workspace",
   ],
   ['v=a||"No Workspace"', 'v=a||"Sin espacio de trabajo"', "cabecera: sin workspace"],
+  // Cabecera: solo el nombre de la carpeta; la ruta completa queda en el title
+  [
+    'k("span",{className:"text-sm font-medium truncate",title:v,children:v})',
+    'k("span",{className:"text-sm font-medium truncate",title:v,children:a?hn.basename(a):v})',
+    "cabecera: nombre de la carpeta",
+  ],
   // "Acerca de": la fila del motor
   [
     'k("span",{className:"text-sm text-muted-foreground",children:"Maestro"}),qO?',
@@ -181,28 +187,108 @@ const UI_PATCHES = [
 ];
 for (const [from, to, label] of UI_PATCHES) js = mustReplace(js, from, to, label);
 
-// Cabecera: botón "Claude" junto al selector de tema (abre "Conectar con Claude…" del backend)
-const sparkRays = Array.from({ length: 8 }, (_, i) => {
-  const a = (i * Math.PI) / 4;
-  const r1 = i % 2 ? 3.2 : 2.6;
-  const r2 = i % 2 ? 8.2 : 10;
-  const p = (r) => [12 + r * Math.cos(a), 12 + r * Math.sin(a)].map((n) => n.toFixed(2));
-  const [x1, y1] = p(r1);
-  const [x2, y2] = p(r2);
-  return `k("line",{x1:${x1},y1:${y1},x2:${x2},y2:${y2}})`;
-}).join(",");
+// Cabecera: botón "Claude" junto al selector de tema (abre "Conectar con Claude…" del backend),
+// con el icono original de la app de Claude (src/claude/claude.png, copiado junto a index.html)
 const claudeButton =
   'k(xt,{variant:"ghost",size:"sm",className:"gap-1.5 px-2.5 font-medium",' +
   'title:"Conectar con Claude: deja que Claude vea tus dispositivos, escriba y ejecute pruebas",' +
   '"aria-label":"Conectar con Claude",onClick:()=>ur("cs-connect-claude"),children:[' +
-  'k("svg",{viewBox:"0 0 24 24",width:16,height:16,"aria-hidden":!0,' +
-  `children:k("g",{stroke:"#D97757",strokeWidth:2.4,strokeLinecap:"round",children:[${sparkRays}]})}),` +
+  'k("img",{src:"./claude.png",width:16,height:16,alt:"","aria-hidden":!0,className:"rounded-sm"}),' +
   'k("span",{children:"Claude"})]})';
 js = mustReplace(
   js,
   'children:[k(NBe,{}),e&&k(xt,{variant:"ghost",size:"icon-sm",onClick:e,className:"text-amber-500 hover:text-amber-400"',
   `children:[${claudeButton},k(NBe,{}),e&&k(xt,{variant:"ghost",size:"icon-sm",onClick:e,className:"text-amber-500 hover:text-amber-400"`,
   "cabecera: botón Claude",
+);
+// Panel del dispositivo vacío: en vez de "Ningún dispositivo conectado", la lista de simuladores y
+// emuladores para encender o conectar con un clic (misma acción que el selector, triggerActivateDevice).
+// Usa los helpers del selector OWe: vLe (nombre/SO), hYt (relojes fuera), gYt (icono de plataforma).
+// El CSS de Tailwind viene compilado: solo sirven clases que ya existen en studio-ui/assets/*.css.
+const emptyDevicePanel = `function CsSinDispositivo(){const o=d=>d.device.instanceId?0:{IOS:1,ANDROID:1,IPADOS:2}[fYt(d)]??3;
+const{devices:s,isDevicesLoading:c,triggerActivateDevice:l}=Xf(),[t,v]=D.useState(!1),[p,q]=D.useState(null),
+L=D.useMemo(()=>(s??[]).map(d=>({device:d,parsed:vLe(d)})).filter(d=>!hYt(d)).sort((a,b)=>o(a)-o(b)||a.parsed.name.localeCompare(b.parsed.name)),[s]),
+V=t?L:L.slice(0,5),
+F=(h,b)=>X("div",{className:"text-center flex flex-col items-center gap-1.5",children:[
+k("svg",{viewBox:"0 0 24 24",width:28,height:28,fill:"none",stroke:"currentColor",strokeWidth:1.5,strokeLinecap:"round",className:"text-muted-foreground mb-1","aria-hidden":!0,children:[k("rect",{x:6,y:2.5,width:12,height:19,rx:2.5}),k("path",{d:"M10.5 18.5h3"})]}),
+k("p",{className:"text-sm font-medium text-foreground",children:h}),
+k("p",{className:"text-xs text-muted-foreground max-w-64 text-balance",children:b})]});
+if(!L.length)return k("div",{className:"px-6",children:c||!s?F("Buscando dispositivos…","Un momento, revisando los simuladores y emuladores de este Mac."):F("No hay simuladores instalados","Crea uno en Xcode (Settings › Components) o en el Device Manager de Android Studio. Aparecerá aquí solo.")});
+return X("div",{className:"w-full max-h-full overflow-y-auto px-4 py-8 flex flex-col gap-4",onClick:e=>e.stopPropagation(),onKeyDown:e=>e.stopPropagation(),children:[
+F("Elige un dispositivo","Enciéndelo aquí para ver su pantalla y ejecutar tus flujos."),
+X("div",{className:"flex flex-col gap-1",children:[V.map(({device:d,parsed:n})=>{const i=d.instanceId??d.modelId,r=!!d.instanceId,w=p===i;
+return X("button",{type:"button",disabled:p!==null,onClick:async()=>{q(i);try{await l(d)}finally{q(null)}},
+className:"w-full flex items-center gap-3 rounded-xl px-3 py-2 text-left hover:bg-accent disabled:opacity-50 outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50 transition-colors",children:[
+k("span",{className:"text-muted-foreground",children:gYt(d.platform)}),
+X("span",{className:"min-w-0 flex-1",children:[k("span",{className:"block truncate text-sm text-foreground",children:n.name}),
+X("span",{className:"flex items-center gap-1.5 text-xs text-muted-foreground",children:[r&&k("span",{className:"inline-block size-2 rounded-full bg-emerald-500","aria-hidden":"true"}),k("span",{className:"truncate",children:(n.os??bLe(d.platform))+(r?" · encendido":"")})]})]}),
+k("span",{className:"text-xs font-medium text-muted-foreground whitespace-nowrap",children:w?(r?"Conectando…":"Encendiendo…"):r?"Conectar":"Encender"})]},i)}),
+L.length>5&&k("button",{type:"button",onClick:()=>v(!t),className:"mx-auto mt-1 rounded-md px-2 py-1 text-xs text-muted-foreground hover:text-foreground underline-offset-4 hover:underline outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50",children:t?"Ver menos":\`Ver los \${L.length} dispositivos\`})]})]})}`.replace(/\n/g, "");
+js = mustReplace(js, "function OWe(", `${emptyDevicePanel}function OWe(`, "panel vacío: componente");
+js = mustReplace(
+  js,
+  'at==="idle"&&k("span",{className:"text-muted-foreground",children:"Ningún dispositivo conectado"})',
+  'at==="idle"&&k(CsSinDispositivo,{})',
+  "panel vacío: uso",
+);
+// Árbol de archivos: punto con el último resultado de cada flujo (verde pasó, rojo falló, ámbar
+// incompleta). Al tocarlo se abre su reporte. Los datos vienen de runs.rs (cs-estados-flujos), que
+// también los reenvía al terminar una ejecución o al abrir otro workspace. Mientras no haya datos, cada
+// fila nueva vuelve a pedirlos: la primera petición puede llegar antes de que exista el workspace.
+const flowStatusDot = `const CsEstados={m:{},l:new Set,c:!1,
+fijar(m){this.m=m||{},this.l.forEach(f=>f())},
+cargar(){clearTimeout(this.t),this.t=setTimeout(()=>_r("cs-estados-flujos").then(m=>this.fijar(m)).catch(()=>{}),200)},
+sub(f){this.c||(this.c=!0,Ja("cs-estados-flujos",m=>this.fijar(m))),Object.keys(this.m).length||this.cargar();this.l.add(f);return()=>this.l.delete(f)}};
+function CsEstadoFlujo({path:p}){
+const m=D.useSyncExternalStore(f=>CsEstados.sub(f),()=>CsEstados.m),e=p?m[p]:null;if(!e)return null;
+const ok=e.estado==="COMPLETED",mal=e.estado==="FAILED",n=ok?"Pasó":mal?"Falló":"Incompleta",
+s=e.fin?Math.round((Date.parse(e.fin)-Date.now())/6e4):null,
+r=s===null||isNaN(s)?"":" "+(Math.abs(s)<60?new Intl.RelativeTimeFormat("es",{numeric:"auto"}).format(s,"minute"):Math.abs(s)<2880?new Intl.RelativeTimeFormat("es",{numeric:"auto"}).format(Math.round(s/60),"hour"):new Intl.RelativeTimeFormat("es",{numeric:"auto"}).format(Math.round(s/1440),"day")),
+t=n+r+(e.reporte?". Abrir reporte":"");
+return k("button",{type:"button",title:t,"aria-label":t,disabled:!e.reporte,
+onClick:x=>{x.stopPropagation(),_r("cs-abrir-reporte",e.reporte).catch(y=>Bn.error(String(y&&y.message||y)))},
+onMouseDown:x=>x.stopPropagation(),
+className:"ml-auto mr-1 shrink-0 inline-flex items-center justify-center size-4 rounded-full cursor-pointer hover:bg-accent outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50",
+children:k("span",{className:"size-2 rounded-full "+(ok?"bg-emerald-500":mal?"bg-red-500":""),style:ok||mal?void 0:{background:"#f59e0b"}})})}`.replace(/\n/g, "");
+js = mustReplace(js, "function OWe(", `${flowStatusDot}function OWe(`, "estado de flujos: componente");
+// Barra de ejecución (fln): junto a "Ejecuciones", por qué no se puede ejecutar o el último resultado
+// del flujo abierto. p = pestaña activa, E = hay dispositivo, Ne/de = flujo/workspace en curso.
+const runSummary = `function CsResumenEjecucion({path:p,device:d,yaml:y,running:r}){
+const m=D.useSyncExternalStore(f=>CsEstados.sub(f),()=>CsEstados.m);if(r)return null;
+const c="truncate text-xs text-muted-foreground";
+if(!d)return k("span",{className:c,title:"Conecta un dispositivo para ejecutar pruebas",children:"Sin dispositivo"});
+if(!y)return k("span",{className:c,title:"Abre un flujo .yaml para ejecutarlo",children:"Abre un flujo"});
+const e=p?m[p]:null;if(!e)return null;
+const ok=e.estado==="COMPLETED",mal=e.estado==="FAILED",t="Última vez: "+(ok?"pasó":mal?"falló":"incompleta");
+return X("button",{type:"button",disabled:!e.reporte,title:e.reporte?"Abrir reporte":void 0,onClick:()=>_r("cs-abrir-reporte",e.reporte).catch(x=>Bn.error(String(x&&x.message||x))),
+className:"flex min-w-0 items-center gap-1.5 rounded-sm px-1 text-xs text-muted-foreground hover:text-foreground hover:underline underline-offset-4 cursor-pointer outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50",
+children:[k("span",{className:"size-2 shrink-0 rounded-full "+(ok?"bg-emerald-500":mal?"bg-red-500":""),style:ok||mal?void 0:{background:"#f59e0b"}}),k("span",{className:"truncate",children:t})]})}`.replace(/\n/g, "");
+js = mustReplace(js, "function OWe(", `${runSummary}function OWe(`, "barra de ejecución: componente");
+// Paso fallido (u() dentro de GIe; m = ruta del flujo, w = paso): "Arreglar con Claude" abre Claude
+// Code en el workspace con el error ya escrito, o copia el pedido y abre Claude Desktop (claude.rs).
+const fixWithClaude = `function CsArreglarConClaude({archivo:a,paso:p,error:e}){
+const[o,s]=D.useState(!1);
+return X("button",{type:"button",disabled:o,onClick:x=>{x.stopPropagation(),s(!0),_r("cs-arreglar-con-claude",{archivo:a,paso:p,error:e}).then(m=>{m==="desktop"?Bn.success("Copié el pedido. Pégalo en un chat nuevo de Claude."):Bn.success("Claude Code se abrió en la Terminal con el error.")}).catch(y=>Bn.error(String(y&&y.message||y))).finally(()=>s(!1))},
+className:"mt-1 inline-flex items-center gap-1.5 rounded-md border border-border px-2 py-0.5 text-xs font-medium text-foreground hover:bg-accent disabled:opacity-50 cursor-pointer outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50",
+children:[k("img",{src:"./claude.png",width:14,height:14,alt:"","aria-hidden":!0,className:"rounded-sm"}),o?"Abriendo Claude…":"Arreglar con Claude"]})}`.replace(/\n/g, "");
+js = mustReplace(js, "function OWe(", `${fixWithClaude}function OWe(`, "arreglar con Claude: componente");
+js = mustReplace(
+  js,
+  'E&&w.errorMessage?k("p",{className:`mt-0.5 break-words ${S?"text-destructive":"text-orange-500"}`,children:w.errorMessage}):null,',
+  'E&&w.errorMessage?k("p",{className:`mt-0.5 break-words ${S?"text-destructive":"text-orange-500"}`,children:w.errorMessage}):null,S&&m?k(CsArreglarConClaude,{archivo:m,paso:w.label,error:w.errorMessage??""}):null,',
+  "arreglar con Claude: paso fallido",
+);
+js = mustReplace(
+  js,
+  'children:[k("span",{className:"text-sm font-medium text-foreground",children:"Ejecuciones"}),X("div",{className:"flex items-center gap-(--spacing-gap)"',
+  'children:[X("div",{className:"flex min-w-0 items-center gap-(--spacing-gap)",children:[k("span",{className:"text-sm font-medium text-foreground shrink-0",children:"Ejecuciones"}),k(CsResumenEjecucion,{path:p,device:E,yaml:!!p&&$k(p),running:Ne||de})]}),X("div",{className:"flex shrink-0 items-center gap-(--spacing-gap)"',
+  "barra de ejecución: uso",
+);
+js = mustReplace(
+  js,
+  'children:X("span",{"data-drag-preview-content":!0,className:"flex items-center gap-(--spacing-gap-sm) text-sm",children:[k(Ge,{icon:lw,size:16,className:"text-muted-foreground"}),k("span",{className:"truncate",children:i.name})]})})',
+  'children:[X("span",{"data-drag-preview-content":!0,className:"flex min-w-0 items-center gap-(--spacing-gap-sm) text-sm",children:[k(Ge,{icon:lw,size:16,className:"text-muted-foreground"}),k("span",{className:"truncate",children:i.name})]}),k(CsEstadoFlujo,{path:i.path})]})',
+  "estado de flujos: árbol",
 );
 // Pasos y errores del panel de ejecución pasan por el traductor del shim (CleanStudioErrores)
 js = mustReplace(
@@ -278,7 +364,7 @@ html = mustReplace(
 );
 fs.writeFileSync(htmlPath, html);
 // Ventana "Claude en Clean Studio" (página propia, fuera del bundle de la interfaz)
-for (const name of ["claude.html", "claude.js"]) {
+for (const name of ["claude.html", "claude.js", "claude.png"]) {
   fs.copyFileSync(path.join(ROOT, "src", "claude", name), path.join(OUT, name));
 }
 // El shim lleva incrustada la tabla de traducciones (la misma que usa errors.rs en Rust)
