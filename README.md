@@ -37,7 +37,7 @@ Para comprobar que tu app **sigue funcionando** cada vez que la cambias, sin toc
 
 | Encender un dispositivo con un clic | Conectar Claude con un clic |
 |---|---|
-| <img src="docs/capturas/panel-dispositivos.png" alt="Panel con los simuladores y emuladores para encender o conectar"> | <img src="docs/capturas/ventana-claude.png" width="380" alt="Ventana Claude en Clean Studio con Claude Desktop y Claude Code conectados"> |
+| <img src="docs/capturas/panel-dispositivos.png" width="420" alt="Panel con los simuladores y emuladores para encender o conectar"> | <img src="docs/capturas/ventana-claude.png" width="420" alt="Ventana Claude en Clean Studio con Claude Desktop y Claude Code conectados"> |
 
 ## ¿Qué lo hace distinto?
 
