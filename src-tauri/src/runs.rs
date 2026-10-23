@@ -299,8 +299,10 @@ fn device_name(app: &AppHandle, platform: &str, id: &str) -> String {
                 }
             }
         }
-    } else if let Ok(out) = adb(app).args(["-s", id, "shell", "getprop", "ro.product.model"]).output() {
-        let model = String::from_utf8_lossy(&out.stdout).trim().to_string();
+    } else if let Some(out) =
+        bridge::output_with_timeout(adb(app).args(["-s", id, "shell", "getprop", "ro.product.model"]), Duration::from_secs(5))
+    {
+        let model = String::from_utf8_lossy(&out).trim().to_string();
         if !model.is_empty() {
             return model;
         }

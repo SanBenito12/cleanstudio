@@ -28,7 +28,12 @@ pub struct AppState {
     pub runs: runs::RunsState,
 }
 
+/// Limpieza al salir. Puede llegar dos veces (señal y RunEvent::Exit): solo la primera trabaja.
 fn shutdown(app: &tauri::AppHandle) {
+    static HECHO: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
+    if HECHO.swap(true, std::sync::atomic::Ordering::SeqCst) {
+        return;
+    }
     runs::abort(app);
     simulator::stop(app, true);
     server::stop(app);

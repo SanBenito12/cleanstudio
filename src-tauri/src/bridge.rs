@@ -23,6 +23,37 @@ fn osascript(script: &str) -> Option<String> {
     (!s.is_empty()).then_some(s)
 }
 
+/// Ejecuta un comando y devuelve su stdout, o `None` si falla o tarda más de `limite`
+/// (entonces lo mata). `adb -s <id> …` espera para siempre si el dispositivo ya no existe.
+pub fn output_with_timeout(cmd: &mut Command, limite: std::time::Duration) -> Option<Vec<u8>> {
+    use std::io::Read;
+    let mut hijo = cmd
+        .stdin(std::process::Stdio::null())
+        .stdout(std::process::Stdio::piped())
+        .stderr(std::process::Stdio::null())
+        .spawn()
+        .ok()?;
+    // La salida se lee en otro hilo para que un volcado grande no bloquee el proceso
+    let mut salida = hijo.stdout.take()?;
+    let lector = std::thread::spawn(move || {
+        let mut buf = Vec::new();
+        let _ = salida.read_to_end(&mut buf);
+        buf
+    });
+    let fin = std::time::Instant::now() + limite;
+    loop {
+        match hijo.try_wait() {
+            Ok(Some(estado)) => return estado.success().then(|| lector.join().ok()).flatten(),
+            Ok(None) if std::time::Instant::now() < fin => std::thread::sleep(std::time::Duration::from_millis(50)),
+            _ => {
+                let _ = hijo.kill();
+                let _ = hijo.wait();
+                return None;
+            }
+        }
+    }
+}
+
 /// Notificación de macOS (Centro de notificaciones). No bloquea ni pide permisos de Automatización.
 pub fn notify(title: &str, subtitle: &str, body: &str) {
     let script = format!(
@@ -125,4 +156,20 @@ pub fn open_external(url: &str) -> Result<(), String> {
 
 pub fn reveal_in_finder(path: &str) {
     let _ = Command::new("open").arg("-R").arg(path).spawn();
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::time::{Duration, Instant};
+
+    #[test]
+    fn output_with_timeout_devuelve_la_salida_o_corta_a_tiempo() {
+        let out = output_with_timeout(Command::new("echo").arg("hola"), Duration::from_secs(5));
+        assert_eq!(out.as_deref(), Some(&b"hola\n"[..]));
+        // Como un adb esperando un dispositivo que ya no existe
+        let inicio = Instant::now();
+        assert!(output_with_timeout(Command::new("sleep").arg("30"), Duration::from_millis(300)).is_none());
+        assert!(inicio.elapsed() < Duration::from_secs(3));
+    }
 }
