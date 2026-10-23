@@ -1,6 +1,6 @@
 [package]
 name = "clean-studio"
-version = "1.0.0"
+version = "1.1.0"
 description = "Clean Studio — Automatización E2E Móvil y Web en Español (Rust + Tauri v2 + Maestro Core)"
 authors = ["Clean Studio Team"]
 edition = "2021"
