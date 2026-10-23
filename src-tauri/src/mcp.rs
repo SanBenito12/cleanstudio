@@ -79,6 +79,7 @@ fn tools() -> Value {
             "description": "Ejecuta al instante uno o varios comandos YAML en el dispositivo conectado (por ejemplo '- tapOn: \"Entrar\"'), sin crear archivos. Útil para explorar la app.",
             "inputSchema": { "type": "object", "properties": {
                 "yaml": { "type": "string", "description": "Comandos en YAML (lista de pasos)" },
+                "appId": { "type": "string", "description": "App a usar en launchApp, stopApp o clearState (por ejemplo com.empresa.app)" },
                 "workspace": workspace
             }, "required": ["yaml"] }
         },
@@ -109,6 +110,19 @@ fn tools() -> Value {
             "inputSchema": { "type": "object", "properties": { "carpeta": { "type": "string", "description": "Carpeta de la ejecución (de ultimas_ejecuciones)" } }, "required": ["carpeta"] }
         },
         {
+            "name": "guardar_revision",
+            "description": "Guarda los hallazgos de una revisión visual de una ejecución (los muestra en su reporte, en \"Qué revisar\"). Reemplaza la revisión anterior de esa ejecución.",
+            "inputSchema": { "type": "object", "properties": {
+                "ejecucion": { "type": "string", "description": "Carpeta de la ejecución (ruta absoluta)" },
+                "hallazgos": { "type": "array", "description": "Lista vacía si no hay nada que revisar", "items": { "type": "object", "properties": {
+                    "gravedad": { "type": "string", "enum": ["alta", "media", "baja"] },
+                    "titulo": { "type": "string", "description": "Qué está mal, corto" },
+                    "detalle": { "type": "string", "description": "Por qué importa y cómo mejorarlo" },
+                    "captura": { "type": "string", "description": "Imagen donde se ve, relativa a la carpeta (por ejemplo revision/01-03.png)" }
+                }, "required": ["titulo"] } }
+            }, "required": ["ejecucion", "hallazgos"] }
+        },
+        {
             "name": "guia_comandos",
             "description": "Referencia rápida en español de los comandos YAML disponibles para escribir flujos.",
             "inputSchema": { "type": "object", "properties": {} }
@@ -130,9 +144,10 @@ fn call(params: &Value, own_server: &mut Option<Child>) -> Value {
     if name == "guia_comandos" {
         return text(GUIA);
     }
-    if matches!(name, "ultimas_ejecuciones" | "leer_ejecucion") {
+    if matches!(name, "ultimas_ejecuciones" | "leer_ejecucion" | "guardar_revision") {
         return match name {
             "ultimas_ejecuciones" => ultimas_ejecuciones(args),
+            "guardar_revision" => guardar_revision(args),
             _ => leer_ejecucion(args),
         };
     }
@@ -305,8 +320,26 @@ fn describe_steps(pasos: &[Value]) -> String {
     out.join("\n")
 }
 
+fn guardar_revision(args: &Value) -> Value {
+    let Some(dir) = args["ejecucion"].as_str().map(PathBuf::from) else { return error("Falta la carpeta de la ejecución.") };
+    let hallazgos = args["hallazgos"].as_array().cloned().unwrap_or_default();
+    match crate::revision::guardar(&dir, &hallazgos) {
+        Ok(n) => text(format!("Revisión guardada con {} hallazgos. Reporte: {}", n, dir.join("reporte.html").display())),
+        Err(e) => error(e),
+    }
+}
+
 fn ejecutar_comandos(args: &Value) -> Value {
     let Some(yaml) = args["yaml"].as_str() else { return error("Falta el YAML de los comandos.") };
+    // Sin encabezado, launchApp/stopApp/clearState no saben qué app usar: se añade el appId
+    let con_app;
+    let yaml = match args["appId"].as_str().filter(|a| !a.is_empty()) {
+        Some(app) if !yaml.contains("appId:") => {
+            con_app = format!("appId: {}\n---\n{}", app, yaml);
+            con_app.as_str()
+        }
+        _ => yaml,
+    };
     if let Err(e) = connected_device() {
         return error(e);
     }
@@ -423,7 +456,16 @@ fn ejecutar_flujo(args: &Value) -> Value {
         "id": device["instanceId"].as_str().unwrap_or(""),
         "nombre": device["description"].as_str().unwrap_or(""),
     });
-    let record = runs::build_record("flow", &last, started, Some(device_json), &videos, &capturas);
+    let mut record = runs::build_record("flow", &last, started, Some(device_json), &videos, &capturas);
+    let adb = paths::detect_android_sdk().map(|sdk| Command::new(PathBuf::from(sdk).join("platform-tools").join("adb")));
+    record["calidad"] = json!(crate::calidad::informe(
+        &record,
+        &dir,
+        device["platform"].as_str().unwrap_or(""),
+        device["instanceId"].as_str().unwrap_or(""),
+        adb,
+        started,
+    ));
     let _ = std::fs::write(dir.join("ejecucion.json"), serde_json::to_string_pretty(&record).unwrap_or_default());
     let reporte = dir.join("reporte.html");
     let _ = std::fs::write(&reporte, reports::render(&record));
@@ -438,6 +480,18 @@ fn ejecutar_flujo(args: &Value) -> Value {
         describe_steps(&pasos),
         reporte.display()
     );
+    // Lo que hay que revisar, para que Claude lo explique o lo corrija
+    if let Some(h) = record["calidad"].as_array().filter(|h| !h.is_empty()) {
+        t.push_str("\n\nQué revisar:");
+        for x in h {
+            t.push_str(&format!(
+                "\n- [{}] {}: {}",
+                x["gravedad"].as_str().unwrap_or(""),
+                x["titulo"].as_str().unwrap_or(""),
+                x["detalle"].as_str().unwrap_or("")
+            ));
+        }
+    }
     for v in &videos {
         t.push_str(&format!("\nVideo: {}", dir.join(v).display()));
     }
